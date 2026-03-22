@@ -112,6 +112,87 @@ def _draw_hud(frame, person_count, obj_count, fps, events, mode):
         y += 19
 
 
+# ── Camera open helper ────────────────────────────────────────────────────────
+def _open_capture(source):
+    """
+    Resolve the best OpenCV capture source for the given input.
+
+    • Integer or digit string  → webcam index
+    • http://host:port         → tries /video, /mjpeg, /shot.jpg in order
+    • rtsp://…                 → used directly
+    • file path                → used directly
+
+    Returns (cap_source, cv2.VideoCapture) or (source, None) on failure.
+    """
+    raw = str(source).strip()
+
+    # Webcam index
+    if raw.isdigit():
+        src = int(raw)
+        cap = cv2.VideoCapture(src)
+        if cap.isOpened():
+            return src, cap
+        _set_error(f"Webcam {src} not found. Is a camera plugged in?")
+        return src, None
+
+    # HTTP URL — IP Webcam / web camera
+    if raw.startswith("http://") or raw.startswith("https://"):
+        base = raw.rstrip("/")
+        # Remove any existing path so we can try the right endpoints
+        from urllib.parse import urlparse
+        parsed = urlparse(base)
+        base_no_path = f"{parsed.scheme}://{parsed.netloc}"
+
+        candidates = []
+        # If user already specified a path, try that first
+        if parsed.path and parsed.path != "/":
+            candidates.append(base)
+        # Then try the common IP Webcam / IP camera endpoints
+        candidates += [
+            base_no_path + "/video",       # IP Webcam (Android) MJPEG
+            base_no_path + "/mjpeg",       # some cameras
+            base_no_path + "/shot.jpg",    # IP Webcam single-frame fallback
+            base_no_path + "/videostream.cgi",
+            base_no_path + "/stream",
+        ]
+
+        for url in candidates:
+            cap = cv2.VideoCapture(url)
+            # For network streams, isOpened alone isn't enough — read a test frame
+            if cap.isOpened():
+                ret, _ = cap.read()
+                if ret:
+                    return url, cap
+                cap.release()
+
+        _set_error(
+            f"Could not connect to {base_no_path}. "
+            "Check: (1) phone & laptop on same WiFi — NOT mobile data, "
+            "(2) IP Webcam app is running on phone, "
+            "(3) try the URL in your browser first."
+        )
+        return source, None
+
+    # RTSP or file path — use as-is
+    cap = cv2.VideoCapture(raw)
+    if cap.isOpened():
+        ret, _ = cap.read()
+        if ret:
+            return raw, cap
+        cap.release()
+        _set_error(f"Opened {raw} but could not read frames. Check the URL/path.")
+        return raw, None
+
+    _set_error(f"Cannot open: {raw}")
+    return raw, None
+
+
+def _set_error(msg: str):
+    with _lock:
+        state["error"]   = msg
+        state["running"] = False
+
+
 # ── Pipeline thread ───────────────────────────────────────────────────────────
 def _run(initial_source):
     from ultralytics import YOLO
@@ -135,13 +216,8 @@ def _run(initial_source):
 
     voice.start()
 
-    raw = str(initial_source)
-    cap_source = int(raw) if raw.isdigit() else raw
-    cap = cv2.VideoCapture(cap_source)
-    if not cap.isOpened():
-        with _lock:
-            state["error"] = f"Cannot open source: {initial_source}"
-            state["running"] = False
+    cap_source, cap = _open_capture(initial_source)
+    if cap is None:
         return
 
     fps_avg      = 0.0
@@ -152,10 +228,12 @@ def _run(initial_source):
     while not _stop_event.is_set():
         ret, frame = cap.read()
         if not ret:
-            if isinstance(cap_source, int):
+            # Network/webcam streams can't be rewound — treat as disconnect
+            if isinstance(cap_source, int) or str(cap_source).startswith(("http","rtsp")):
                 with _lock:
-                    state["error"] = "Camera disconnected."
+                    state["error"] = "Camera disconnected or stream ended."
                 break
+            # Local video file — loop back to start
             cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
             continue
 
