@@ -261,6 +261,25 @@ header{display:flex;align-items:center;gap:12px;padding:10px 18px;background:lin
 .vol-row label{font-size:.65rem;color:var(--muted);white-space:nowrap;}
 .vol-row input{flex:1;}
 
+/* ── Mode switch ─────────────────────────────────────────────── */
+.mode-switch{display:flex;border:1px solid var(--border);border-radius:999px;overflow:hidden;}
+.msw{padding:3px 12px;border:none;background:transparent;color:var(--muted);font-size:.68rem;font-weight:700;cursor:pointer;transition:all .2s;}
+.msw.norm.active{background:var(--accent);color:#020a14;}
+.msw.game.active{background:var(--purple);color:#fff;}
+
+/* Normal mode — hide game-only UI elements */
+#game-panel.nm .phase-pill,
+#game-panel.nm .timer-bar-wrap,
+#game-panel.nm .timer-row,
+#game-panel.nm .g-setup,
+#game-panel.nm .g-freeze,
+#game-panel.nm .g-go,
+#game-panel.nm .g-setline,
+#game-panel.nm .music-row{display:none;}
+body.nm .winners-wrap{display:none;}
+body.nm #finish-canvas{display:none;}
+#game-panel.nm{border-color:var(--border) !important;box-shadow:none !important;}
+
 /* ── Responsive ──────────────────────────────────────────────── */
 @media(max-width:980px){
   .layout{grid-template-columns:1fr;}
@@ -361,6 +380,10 @@ header{display:flex;align-items:center;gap:12px;padding:10px 18px;background:lin
     <div class="game-panel" id="game-panel">
       <div class="game-top">
         <span class="game-title">🦑 SQUID GAME</span>
+        <div class="mode-switch" style="margin-left:10px;">
+          <button class="msw norm active" id="btn-mode-normal">Normal</button>
+          <button class="msw game"        id="btn-mode-game">Game</button>
+        </div>
         <span class="phase-pill" id="phase-pill">IDLE</span>
       </div>
 
@@ -690,7 +713,7 @@ document.getElementById("btn-mute-music").addEventListener("click",()=>{
 });
 
 function syncMusic(phase){
-  if(!musicLoaded)return;
+  if(!musicLoaded||!isGameMode)return;
   if(phase==="moving"){if(audio.paused&&!musicMuted)audio.play().catch(()=>{});}
   else{if(!audio.paused)audio.pause();}
 }
@@ -804,24 +827,32 @@ function renderPlayers(players,targetName){
   if(!players||Object.keys(players).length===0){
     list.innerHTML="";list.appendChild(empty);sub.textContent="";return;
   }
-  const entries=Object.entries(players).sort((a,b)=>{
-    const o={alive:0,winner:1,eliminated:2};
-    return(o[a[1].status]||0)-(o[b[1].status]||0)||(a[1].player_number-b[1].player_number);
-  });
-  const alive=entries.filter(([,p])=>p.status==="alive").length;
-  sub.textContent=alive+"/"+entries.length+" alive";
+  const entries=Object.entries(players);
+  if(isGameMode){
+    entries.sort((a,b)=>{
+      const o={alive:0,winner:1,eliminated:2};
+      return(o[a[1].status]||0)-(o[b[1].status]||0)||(a[1].player_number-b[1].player_number);
+    });
+    const alive=entries.filter(([,p])=>p.status==="alive").length;
+    sub.textContent=alive+"/"+entries.length+" alive";
+  } else {
+    sub.textContent=entries.length+" tracked";
+  }
   list.innerHTML="";
   for(const[tid,p]of entries){
-    const isT=p.name===targetName&&targetName;
-    const ini=!p.name.startsWith("Player")?p.name.charAt(0).toUpperCase():p.player_number||"?";
-    const stL=p.status==="eliminated"?I18N[LANG].status_eliminated:
-               p.status==="winner"?I18N[LANG].status_winner:I18N[LANG].status_alive;
+    // In normal mode: no game-status styling, always treat as neutral
+    const status=isGameMode?p.status:"alive";
+    const isT=isGameMode&&p.name===targetName&&targetName;
+    const displayName=p.name||(isGameMode?`Player ${p.player_number}`:`ID${tid}`);
+    const ini=(!displayName.startsWith("Player"))?displayName.charAt(0).toUpperCase():(p.player_number||"?");
+    const stL=isGameMode?(status==="eliminated"?I18N[LANG].status_eliminated:
+               status==="winner"?I18N[LANG].status_winner:I18N[LANG].status_alive):"";
     const div=document.createElement("div");
-    div.className=`player-item ${p.status}${isT?" target":""}`;
+    div.className=`player-item ${status}${isT?" target":""}`;
     div.innerHTML=`<div class="player-avatar">${ini}</div>
       <div class="player-info">
-        <div class="player-name">${p.name}</div>
-        <div class="player-status">${stL}</div>
+        <div class="player-name">${displayName}</div>
+        ${stL?`<div class="player-status">${stL}</div>`:""}
       </div>
       <div class="player-move">${p.movement>2?p.movement.toFixed(1)+"px":""}</div>`;
     list.appendChild(div);
@@ -882,6 +913,25 @@ async function poll(){
     drawFinishLineCanvas();
   }catch(e){console.warn("poll:",e);}
 }
+
+/* ── Mode toggle ─────────────────────────────────────────────── */
+let isGameMode=false;
+function applyModeUI(gm){
+  isGameMode=gm;
+  document.getElementById("btn-mode-normal").classList.toggle("active",!gm);
+  document.getElementById("btn-mode-game").classList.toggle("active",gm);
+  document.getElementById("game-panel").classList.toggle("nm",!gm);
+  document.body.classList.toggle("nm",!gm);
+  const ptitle=document.querySelector(".player-header-title");
+  if(ptitle)ptitle.textContent=gm?"Players":"Tracked People";
+}
+async function setMode(gm){
+  applyModeUI(gm);
+  await fetch("/game/mode",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({enabled:gm})});
+  if(!gm){audio.pause();}
+}
+document.getElementById("btn-mode-normal").addEventListener("click",()=>setMode(false));
+document.getElementById("btn-mode-game").addEventListener("click",()=>setMode(true));
 
 /* ── Game controls ───────────────────────────────────────────── */
 document.getElementById("btn-freeze").addEventListener("click",async()=>{
@@ -1002,6 +1052,7 @@ document.getElementById("btn-register").addEventListener("click",async()=>{
 });
 
 /* ── Boot ────────────────────────────────────────────────────── */
+applyModeUI(false);   // start in Normal mode — no game features shown
 applyLang();
 poll();
 loadRegisteredUsers();

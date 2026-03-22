@@ -43,10 +43,11 @@ LOITERING_PIXEL_THRESHOLD = 15          # px; "barely moving" definition
 LOITERING_TIME_THRESHOLD  = 15.0        # seconds
 
 # ── Squid Game – Freeze Mode ──────────────────────────────────────────────────
-# Any tracked player that moves MORE than this many pixels/frame while
-# freeze_mode is active will be marked ELIMINATED.
-# Increase if detection noise is causing false eliminations.
-FREEZE_MOVEMENT_THRESHOLD = 25          # pixels/frame
+# A player is ELIMINATED if they move more than this many pixels from
+# the position they were at when the freeze phase started.
+# This is total displacement (not per-frame), so it is FPS-independent.
+# Raise if you get false eliminations; lower to catch subtler movement.
+FREEZE_MOVEMENT_THRESHOLD = 12          # pixels (total displacement from freeze anchor)
 
 # ── Face recognition ──────────────────────────────────────────────────────────
 # SETUP: install ONE backend before enabling:
