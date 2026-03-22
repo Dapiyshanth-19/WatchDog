@@ -15,7 +15,7 @@ CAMERA_SOURCE = 0
 # "yolo11n.pt"  – fast nano model (recommended for CPU / demo)
 # "yolo11s.pt"  – small, slightly more accurate
 # "yolo26n.pt"  – use when YOLOv26 weights become available
-MODEL_NAME = "yolo11n.pt"
+MODEL_NAME = "yolo26n.pt"
 
 # Only report detections above this confidence
 CONFIDENCE_THRESHOLD = 0.45
