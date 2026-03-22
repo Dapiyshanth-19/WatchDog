@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.env
+venv/
+env/
+
+# Database (runtime data — not source)
+watchdog.db
+
+# YOLO model weights (large binary files — download separately)
+*.pt
+*.onnx
+*.weights
+
+# Uploaded face images (user data)
+faces/
+
+# Audio files
+*.mp3
+*.wav
+*.ogg
+*.m4a
+
+# Claude Code settings
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
