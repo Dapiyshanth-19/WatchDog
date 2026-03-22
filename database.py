@@ -69,7 +69,20 @@ def get_alerts(limit: int = 20) -> list[dict]:
         rows = c.execute(
             "SELECT * FROM alerts ORDER BY id DESC LIMIT ?", (limit,)
         ).fetchall()
-    return [dict(r) for r in rows]
+    result = []
+    for r in rows:
+        d = dict(r)
+        raw = d.get("details", "") or ""
+        try:
+            parsed = json.loads(raw)
+            d["details_en"] = parsed.get("details", "")
+            d["details_ta"] = parsed.get("details_ta", "")
+        except (json.JSONDecodeError, TypeError):
+            # Plain string stored directly — use as-is
+            d["details_en"] = raw
+            d["details_ta"] = ""
+        result.append(d)
+    return result
 
 
 def get_cameras() -> list[dict]:

@@ -543,19 +543,34 @@ function timeStr(ts) {
   return isNaN(d) ? ts : d.toLocaleTimeString();
 }
 
+// Icons and friendly labels for each alert type
+const TYPE_META = {
+  Running:    { icon: "🏃", label_en: "Running",      label_ta: "ஓடுகிறார்" },
+  Loitering:  { icon: "🕐", label_en: "Loitering",    label_ta: "தாமதம்" },
+  CrowdLimit: { icon: "⚠️",  label_en: "Crowd Alert",  label_ta: "கூட்ட எச்சரிக்கை" },
+  Manual:     { icon: "📌", label_en: "Note",          label_ta: "குறிப்பு" },
+};
+
 function prependAlert(al) {
-  const detailsEn = al.details || (al.details_en) || "";
-  const detailsTa = al.details_ta || "";
+  // Use the parsed clean fields from the server
+  const en = al.details_en || al.details || "";
+  const ta = al.details_ta || "";
+  const meta = TYPE_META[al.type] || { icon: "🔔", label_en: al.type, label_ta: al.type };
+
+  // Primary text = current language; secondary text = the other language
+  const primary   = (LANG === "ta" && ta) ? ta : en;
+  const secondary = (LANG === "ta" && ta) ? en : ta;
+  const badgeLabel = LANG === "ta" ? meta.label_ta : meta.label_en;
 
   const div = document.createElement("div");
   div.className = "feed-item";
   div.innerHTML = `
     <div class="row1">
-      <span class="badge ${badgeClass(al.type)}">${al.type}</span>
-      <span class="en">${detailsEn}</span>
+      <span class="badge ${badgeClass(al.type)}">${meta.icon} ${badgeLabel}</span>
       <span class="ts">${timeStr(al.timestamp)}</span>
     </div>
-    ${detailsTa ? `<div class="ta">${detailsTa}</div>` : ""}`;
+    <div class="en">${primary}</div>
+    ${secondary ? `<div class="ta">${secondary}</div>` : ""}`;
   activityList.prepend(div);
   playBeep();
 }
