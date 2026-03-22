@@ -3,304 +3,330 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>WatchDog – AI Crowd Surveillance</title>
+<title>WatchDog – PHANTOM VISION</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-/* ── Reset & variables ─────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin:0; padding:0; }
-:root {
-  --bg:       #080b12;
-  --surface:  #0f1520;
-  --card:     #131c2e;
-  --border:   #1e2d46;
-  --accent:   #38bdf8;
-  --green:    #22d3a0;
-  --yellow:   #fbbf24;
-  --red:      #f43f5e;
-  --orange:   #fb923c;
-  --text:     #e2e8f0;
-  --muted:    #4a6080;
-  --tamil:    #a78bfa;
-  --r:        8px;
+/* ── Reset & theme ──────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#060810;
+  --surface:#0c1220;
+  --card:#0f1828;
+  --border:#1a2840;
+  --accent:#00d4ff;
+  --green:#00ffaa;
+  --yellow:#ffcc00;
+  --red:#ff2855;
+  --orange:#ff7b00;
+  --purple:#b347ff;
+  --text:#dde8f5;
+  --muted:#3a5070;
+  --tamil:#c084fc;
+  --r:10px;
+  /* Crowd pulse vars */
+  --pulse-color:#060810;
+  --pulse-alpha:0;
+  --glow-color:#00d4ff;
 }
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'Segoe UI', system-ui, sans-serif;
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Segoe UI',system-ui,sans-serif;
   min-height:100vh;
   overflow-x:hidden;
+  transition:background .6s;
 }
+/* Crowd pulse background glow */
+body::before{
+  content:'';
+  position:fixed;inset:0;
+  background:radial-gradient(ellipse at center, var(--pulse-color) 0%, transparent 70%);
+  opacity:var(--pulse-alpha);
+  pointer-events:none;
+  z-index:0;
+  transition:opacity .8s, background .8s;
+}
+.layout,.topbar,header{position:relative;z-index:1;}
 
-/* ── Header ──────────────────────────────────────────────────  */
-header {
-  display:flex; align-items:center; gap:14px;
-  padding:10px 20px;
-  background: linear-gradient(90deg, #0a0f1e 0%, #0d1829 100%);
+/* ── Header ─────────────────────────────────────────────────── */
+header{
+  display:flex;align-items:center;gap:12px;
+  padding:10px 18px;
+  background:linear-gradient(90deg,#060d1a,#0a1526);
   border-bottom:1px solid var(--border);
-  position:sticky; top:0; z-index:100;
+  position:sticky;top:0;z-index:100;
 }
-.logo { font-size:1.4rem; font-weight:800; letter-spacing:.04em; }
-.logo span { color:var(--accent); }
-.tagline { font-size:.72rem; color:var(--muted); }
+.logo{font-size:1.35rem;font-weight:900;letter-spacing:.04em;}
+.logo .w{color:#fff;}.logo .d{color:var(--accent);}
+.logo .sub{
+  font-size:.6rem;letter-spacing:.18em;color:var(--muted);
+  display:block;margin-top:-2px;
+}
+.header-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
 
-.lang-toggle {
-  margin-left:auto;
-  display:flex; gap:0;
-  border:1px solid var(--border); border-radius:999px; overflow:hidden;
+/* Language toggle */
+.lang-toggle{display:flex;border:1px solid var(--border);border-radius:999px;overflow:hidden;}
+.lang-btn{
+  padding:4px 13px;border:none;background:transparent;
+  color:var(--muted);font-size:.75rem;font-weight:700;cursor:pointer;transition:all .2s;
 }
-.lang-btn {
-  padding:5px 14px; border:none; background:transparent;
-  color:var(--muted); font-size:.78rem; font-weight:600;
-  cursor:pointer; transition:all .2s;
-}
-.lang-btn.active { background:var(--accent); color:#03080f; }
+.lang-btn.active{background:var(--accent);color:#020a14;}
 
-.live-pill {
-  display:flex; align-items:center; gap:6px;
-  padding:4px 12px; border-radius:999px;
-  background:#0d1829; border:1px solid var(--border);
-  font-size:.72rem; font-weight:600; color:var(--muted);
-  transition:all .3s;
+/* Live pill */
+.live-pill{
+  display:flex;align-items:center;gap:6px;
+  padding:4px 11px;border-radius:999px;
+  background:var(--card);border:1px solid var(--border);
+  font-size:.7rem;font-weight:700;color:var(--muted);transition:all .3s;
 }
-.live-pill.on { border-color:var(--green); color:var(--green); }
-.live-pill .dot {
-  width:8px; height:8px; border-radius:50%;
-  background:var(--muted);
-}
-.live-pill.on .dot {
-  background:var(--green);
-  box-shadow:0 0 6px var(--green);
-  animation:pulse 1.4s infinite;
-}
-@keyframes pulse {
-  0%,100% { opacity:1; }
-  50%      { opacity:.4; }
-}
+.live-pill.on{border-color:var(--green);color:var(--green);}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);}
+.live-pill.on .dot{background:var(--green);box-shadow:0 0 8px var(--green);animation:blink 1.2s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.3;}}
 
-.btn-fs {
-  background:transparent; border:1px solid var(--border);
-  border-radius:6px; color:var(--muted); padding:5px 10px;
-  cursor:pointer; font-size:.9rem; transition:color .2s;
+.icon-btn{
+  background:transparent;border:1px solid var(--border);border-radius:7px;
+  color:var(--muted);padding:5px 10px;cursor:pointer;font-size:.85rem;
+  transition:all .2s;
 }
-.btn-fs:hover { color:var(--text); }
+.icon-btn:hover{border-color:var(--accent);color:var(--accent);}
+.icon-btn.on{border-color:var(--yellow);color:var(--yellow);}
 
-/* ── Layout ──────────────────────────────────────────────────  */
-.layout {
+/* ── Layout ─────────────────────────────────────────────────── */
+.layout{
   display:grid;
-  grid-template-columns: 1fr 360px;
-  gap:14px;
-  padding:14px;
-  max-width:1500px;
+  grid-template-columns:1fr 350px;
+  gap:12px;
+  padding:12px;
+  max-width:1600px;
   margin:0 auto;
 }
-.left  { display:flex; flex-direction:column; gap:14px; }
-.right { display:flex; flex-direction:column; gap:14px; }
+.left,.right{display:flex;flex-direction:column;gap:12px;}
 
-/* ── Cards ───────────────────────────────────────────────────  */
-.card {
+/* ── Card ───────────────────────────────────────────────────── */
+.card{
   background:var(--card);
   border:1px solid var(--border);
   border-radius:var(--r);
   overflow:hidden;
 }
-.card-title {
-  font-size:.68rem; text-transform:uppercase; letter-spacing:.1em;
-  color:var(--muted); padding:10px 14px 0;
+.card-title{
+  font-size:.65rem;text-transform:uppercase;letter-spacing:.12em;
+  color:var(--muted);padding:10px 14px 0;
 }
 
-/* ── Video ───────────────────────────────────────────────────  */
-.video-wrap {
-  background:#000;
-  position:relative;
-  border-radius:var(--r);
-  overflow:hidden;
-  border:1px solid var(--border);
+/* ── Video ───────────────────────────────────────────────────── */
+.video-wrap{
+  position:relative;border-radius:var(--r);overflow:hidden;
+  border:1px solid var(--border);background:#000;
+  /* Neon glow that intensifies with crowd */
+  box-shadow:0 0 0 1px var(--border), 0 0 20px rgba(0,212,255,.05);
+  transition:box-shadow .6s;
 }
-.video-wrap img { width:100%; display:block; }
-.video-offline {
-  height:380px; display:flex; flex-direction:column;
-  align-items:center; justify-content:center; gap:10px;
+.video-wrap.crowded{box-shadow:0 0 0 2px var(--red), 0 0 40px rgba(255,40,85,.2);}
+.video-wrap img{width:100%;display:block;}
+.video-offline{
+  height:360px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:14px;
   color:var(--muted);
 }
-.video-offline .icon { font-size:2.5rem; opacity:.3; }
+.video-offline .big{font-size:3rem;opacity:.2;}
+.video-offline .msg{font-size:.9rem;opacity:.5;}
 
-/* ── Stats row ───────────────────────────────────────────────  */
-.stats-row {
-  display:grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap:10px;
+/* ── Stats ───────────────────────────────────────────────────── */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.stat{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r);padding:12px 14px;
+  transition:border-color .4s, box-shadow .4s;
 }
-.stat {
-  background:var(--card);
-  border:1px solid var(--border);
-  border-radius:var(--r);
-  padding:12px 14px;
-}
-.stat .lbl { font-size:.63rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
-.stat .val {
-  font-size:2rem; font-weight:800; margin-top:2px;
+.stat.flash{border-color:var(--red);box-shadow:0 0 14px rgba(255,40,85,.3);}
+.stat .lbl{font-size:.62rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);}
+.stat .val{
+  font-size:2.1rem;font-weight:900;margin-top:3px;
   font-variant-numeric:tabular-nums;
   transition:color .4s;
 }
-.stat.people .val  { color:var(--accent); }
-.stat.objects .val { color:var(--yellow); }
-.stat.fps .val     { color:var(--green); }
-.stat.alerted .val { color:var(--red); }
+.stat.people  .val{color:var(--accent);}
+.stat.objects .val{color:var(--yellow);}
+.stat.fps     .val{color:var(--green);}
+.stat.alerts-s .val{color:var(--red);}
+.stat .sub{font-size:.65rem;color:var(--muted);margin-top:2px;}
 
-/* ── Detection mode ──────────────────────────────────────────  */
-.mode-row {
-  display:flex; gap:8px; flex-wrap:wrap;
-  padding:12px 14px;
-  background:var(--card);
-  border:1px solid var(--border);
-  border-radius:var(--r);
-  align-items:center;
+/* ── Phantom Vision controls ────────────────────────────────── */
+.vision-panel{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r);padding:12px 14px;
+  display:flex;flex-direction:column;gap:10px;
 }
-.mode-row .lbl { font-size:.7rem; color:var(--muted); margin-right:4px; }
-.mode-btn {
-  padding:5px 14px; border-radius:999px; border:1px solid var(--border);
-  background:transparent; color:var(--muted); font-size:.75rem;
-  font-weight:600; cursor:pointer; transition:all .2s;
+.vp-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.vp-label{font-size:.65rem;text-transform:uppercase;letter-spacing:.1em;
+           color:var(--muted);min-width:60px;}
+.vp-btn{
+  padding:5px 13px;border-radius:999px;
+  border:1px solid var(--border);background:transparent;
+  color:var(--muted);font-size:.72rem;font-weight:700;
+  cursor:pointer;transition:all .2s;
 }
-.mode-btn.active { background:var(--accent); border-color:var(--accent); color:#03080f; }
-.mode-btn:hover:not(.active) { border-color:var(--accent); color:var(--accent); }
+.vp-btn:hover:not(.active){border-color:var(--accent);color:var(--accent);}
+.vp-btn.active{background:var(--accent);border-color:var(--accent);color:#020a14;}
+.vp-btn.active.thermal{background:var(--orange);border-color:var(--orange);}
+.vp-btn.active.xray{background:var(--purple);border-color:var(--purple);}
+.vp-btn.active.neon{
+  background:linear-gradient(90deg,#00ffaa,#00d4ff);
+  border-color:var(--green);color:#020a14;
+}
+/* Toggle buttons */
+.toggle-btn{
+  padding:4px 11px;border-radius:6px;border:1px solid var(--border);
+  background:transparent;color:var(--muted);font-size:.7rem;
+  cursor:pointer;transition:all .2s;
+}
+.toggle-btn.on{border-color:var(--green);color:var(--green);background:rgba(0,255,170,.06);}
 
-/* ── Camera source ───────────────────────────────────────────  */
-.cam-row {
-  display:flex; gap:8px; flex-wrap:wrap;
-  padding:12px 14px;
-  background:var(--card);
-  border:1px solid var(--border);
-  border-radius:var(--r);
-  align-items:center;
+/* ── Detection mode ─────────────────────────────────────────── */
+.detect-row{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r);padding:10px 14px;
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
 }
-.cam-row .lbl { font-size:.7rem; color:var(--muted); }
-.preset-btns { display:flex; gap:6px; flex-wrap:wrap; }
-.preset-btn {
-  padding:4px 10px; border-radius:6px; border:1px solid var(--border);
-  background:transparent; color:var(--muted); font-size:.72rem;
-  cursor:pointer; transition:all .2s;
+.detect-label{font-size:.65rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);}
+.mode-btn{
+  padding:5px 13px;border-radius:999px;border:1px solid var(--border);
+  background:transparent;color:var(--muted);font-size:.72rem;font-weight:700;
+  cursor:pointer;transition:all .2s;
 }
-.preset-btn:hover { border-color:var(--accent); color:var(--accent); }
-.cam-input {
-  flex:1; min-width:180px;
-  padding:6px 10px; border-radius:6px;
-  border:1px solid var(--border); background:var(--surface);
-  color:var(--text); font-size:.8rem;
-}
-.cam-input::placeholder { color:var(--muted); }
-.btn { padding:7px 18px; border-radius:7px; border:none; font-size:.8rem;
-       font-weight:700; cursor:pointer; transition:opacity .15s; }
-.btn:hover { opacity:.85; }
-.btn-start { background:var(--green);  color:#022c22; }
-.btn-stop  { background:var(--red);    color:#fff; }
-.btn-snap  { background:var(--border); color:var(--text); }
+.mode-btn.active{background:var(--accent);border-color:var(--accent);color:#020a14;}
+.mode-btn:hover:not(.active){border-color:var(--accent);color:var(--accent);}
 
-/* ── Chart ───────────────────────────────────────────────────  */
-.chart-wrap { padding:12px 14px 14px; }
-.chart-wrap canvas { max-height:160px; }
+/* ── Camera source row ──────────────────────────────────────── */
+.cam-row{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r);padding:10px 14px;
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+}
+.preset-btn{
+  padding:4px 10px;border-radius:6px;border:1px solid var(--border);
+  background:transparent;color:var(--muted);font-size:.7rem;
+  cursor:pointer;transition:all .2s;
+}
+.preset-btn:hover{border-color:var(--accent);color:var(--accent);}
+.cam-input{
+  flex:1;min-width:180px;
+  padding:6px 10px;border-radius:7px;
+  border:1px solid var(--border);background:var(--surface);
+  color:var(--text);font-size:.8rem;
+}
+.cam-input::placeholder{color:var(--muted);}
+.btn{padding:6px 16px;border-radius:7px;border:none;font-size:.78rem;
+     font-weight:800;cursor:pointer;transition:opacity .15s;}
+.btn:hover{opacity:.85;}
+.btn-start{background:var(--green); color:#022c22;}
+.btn-stop {background:var(--red);   color:#fff;}
+.btn-snap {background:var(--border);color:var(--text);}
 
-/* ── Activity feed ───────────────────────────────────────────  */
-.feed-wrap { flex:1; display:flex; flex-direction:column; overflow:hidden; }
-.feed-header {
-  display:flex; align-items:center; justify-content:space-between;
-  padding:10px 14px;
-  border-bottom:1px solid var(--border);
-}
-.feed-header span { font-size:.68rem; text-transform:uppercase;
-                     letter-spacing:.1em; color:var(--muted); }
-.feed-clear { background:none; border:none; color:var(--muted);
-              font-size:.7rem; cursor:pointer; }
-.feed-clear:hover { color:var(--text); }
-#activity-list {
-  flex:1; overflow-y:auto; max-height:420px;
-  scrollbar-width:thin; scrollbar-color:var(--border) transparent;
-}
-.feed-item {
-  padding:9px 14px; border-bottom:1px solid #111a2a;
-  animation:slide-in .25s ease;
-}
-@keyframes slide-in {
-  from { opacity:0; transform:translateX(10px); }
-  to   { opacity:1; transform:translateX(0); }
-}
-.feed-item .row1 { display:flex; align-items:center; gap:8px; }
-.badge {
-  flex-shrink:0; padding:2px 8px; border-radius:999px;
-  font-size:.62rem; font-weight:700; text-transform:uppercase;
-}
-.badge-Running    { background:#4c0519; color:#fda4af; border:1px solid #9f1239; }
-.badge-Loitering  { background:#451a03; color:#fde68a; border:1px solid #92400e; }
-.badge-CrowdLimit { background:#1e1b4b; color:#c4b5fd; border:1px solid #4338ca; }
-.badge-Manual     { background:#022c22; color:#6ee7b7; border:1px solid #065f46; }
-.badge-default    { background:#1e293b; color:#94a3b8; border:1px solid #334155; }
-.feed-item .en  { font-size:.82rem; color:var(--text); flex:1; }
-.feed-item .ta  { font-size:.78rem; color:var(--tamil); margin-top:2px; font-style:italic; }
-.feed-item .ts  { font-size:.65rem; color:var(--muted); }
-.feed-item .who { font-size:.68rem; color:var(--muted); margin-top:1px; }
+/* ── Chart ──────────────────────────────────────────────────── */
+.chart-wrap{padding:10px 14px 14px;}
+.chart-wrap canvas{max-height:140px;}
 
-/* ── Error banner ────────────────────────────────────────────  */
-#error-banner {
-  display:none; background:#4c0519; color:#fda4af;
-  padding:9px 14px; border-radius:var(--r);
-  font-size:.8rem; border:1px solid #9f1239;
+/* ── Activity Feed ──────────────────────────────────────────── */
+.feed-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.feed-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 14px;border-bottom:1px solid var(--border);
+}
+.feed-header-title{font-size:.65rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);}
+.feed-clear{background:none;border:none;color:var(--muted);font-size:.7rem;cursor:pointer;}
+.feed-clear:hover{color:var(--text);}
+#activity-list{
+  flex:1;overflow-y:auto;max-height:440px;
+  scrollbar-width:thin;scrollbar-color:var(--border) transparent;
+}
+.feed-item{
+  padding:9px 14px;border-bottom:1px solid #0d1624;
+  animation:slide-in .22s ease;
+}
+@keyframes slide-in{from{opacity:0;transform:translateX(8px);}to{opacity:1;transform:none;}}
+.feed-item .row1{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
+.badge{
+  flex-shrink:0;padding:2px 9px;border-radius:999px;
+  font-size:.6rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;
+}
+.badge-Running   {background:#4c0519;color:#fda4af;border:1px solid #9f1239;}
+.badge-Loitering {background:#451a03;color:#fde68a;border:1px solid #92400e;}
+.badge-CrowdLimit{background:#1e1b4b;color:#c4b5fd;border:1px solid #4338ca;}
+.badge-Manual    {background:#022c22;color:#6ee7b7;border:1px solid #065f46;}
+.badge-default   {background:#1e293b;color:#94a3b8;border:1px solid #334155;}
+.feed-item .ts{font-size:.62rem;color:var(--muted);margin-left:auto;flex-shrink:0;}
+.feed-item .en{font-size:.82rem;color:var(--text);line-height:1.4;}
+.feed-item .ta{font-size:.76rem;color:var(--tamil);margin-top:2px;font-style:italic;line-height:1.4;}
+
+/* ── Error ──────────────────────────────────────────────────── */
+#error-banner{
+  display:none;background:#4c0519;color:#fda4af;
+  padding:8px 14px;border-radius:var(--r);
+  font-size:.8rem;border:1px solid #9f1239;
 }
 
-/* ── Sound toggle ────────────────────────────────────────────  */
-.sound-toggle {
-  background:none; border:1px solid var(--border);
-  border-radius:6px; color:var(--muted); padding:5px 10px;
-  cursor:pointer; font-size:.8rem; transition:all .2s;
+/* ── Crowd storm overlay ────────────────────────────────────── */
+#storm{
+  position:fixed;inset:0;pointer-events:none;z-index:200;
+  border:0px solid var(--red);
+  box-shadow:inset 0 0 0px var(--red);
+  transition:all .15s;
 }
-.sound-toggle.on { border-color:var(--yellow); color:var(--yellow); }
+#storm.active{
+  border-width:6px;
+  box-shadow:inset 0 0 60px rgba(255,40,85,.4);
+  animation:storm-pulse .5s infinite alternate;
+}
+@keyframes storm-pulse{
+  from{box-shadow:inset 0 0 40px rgba(255,40,85,.3);}
+  to  {box-shadow:inset 0 0 90px rgba(255,40,85,.6);}
+}
 
-/* ── Kiosk mode ──────────────────────────────────────────────  */
-body.kiosk .layout { grid-template-columns:1fr; }
-body.kiosk .right  { display:none; }
-body.kiosk .video-wrap img { max-height:90vh; }
-body.kiosk .stats-row { grid-template-columns:repeat(4,1fr); }
-
-/* ── Responsive ──────────────────────────────────────────────  */
-@media(max-width:960px) {
-  .layout { grid-template-columns:1fr; }
-  .stats-row { grid-template-columns:repeat(2,1fr); }
+/* ── Responsive ─────────────────────────────────────────────── */
+@media(max-width:980px){
+  .layout{grid-template-columns:1fr;}
+  .stats-row{grid-template-columns:repeat(2,1fr);}
 }
 </style>
 </head>
 <body>
 
-<!-- ── HEADER ─────────────────────────────────────────────── -->
+<!-- Crowd storm frame overlay -->
+<div id="storm"></div>
+
+<!-- ── HEADER ──────────────────────────────────────────────── -->
 <header>
   <div>
-    <div class="logo">Watch<span>Dog</span></div>
-    <div class="tagline" data-i18n="tagline">AI Crowd Surveillance · Real-time Detection</div>
+    <div class="logo">
+      <span class="w">Watch</span><span class="d">Dog</span>
+      <span class="sub">PHANTOM VISION · AI SURVEILLANCE</span>
+    </div>
   </div>
-
-  <div class="lang-toggle">
-    <button class="lang-btn active" data-lang="en">EN</button>
-    <button class="lang-btn"        data-lang="ta">தமிழ்</button>
+  <div class="header-right">
+    <div class="lang-toggle">
+      <button class="lang-btn active" data-lang="en">EN</button>
+      <button class="lang-btn"        data-lang="ta">தமிழ்</button>
+    </div>
+    <div class="live-pill" id="live-pill"><div class="dot"></div><span id="live-label">OFFLINE</span></div>
+    <button class="icon-btn" id="voice-btn" title="AI Voice alerts">🔕 Voice</button>
+    <button class="icon-btn" id="kiosk-btn" title="Fullscreen / Kiosk">⛶</button>
   </div>
-
-  <div class="live-pill" id="live-pill">
-    <div class="dot"></div>
-    <span id="live-label">OFFLINE</span>
-  </div>
-
-  <button class="sound-toggle" id="sound-toggle" title="Toggle alert sound">🔕 Sound</button>
-  <button class="btn-fs" id="btn-kiosk" title="Kiosk / fullscreen mode">⛶</button>
 </header>
 
-<!-- ── MAIN LAYOUT ────────────────────────────────────────── -->
+<!-- ── LAYOUT ──────────────────────────────────────────────── -->
 <div class="layout">
 
-  <!-- LEFT COLUMN -->
+  <!-- LEFT -->
   <div class="left">
 
     <!-- Video -->
     <div class="video-wrap" id="video-wrap">
       <div class="video-offline" id="video-offline">
-        <div class="icon">📷</div>
-        <div data-i18n="offline_msg">Camera offline — press Start to begin</div>
+        <div class="big">👁</div>
+        <div class="msg" data-i18n="offline_msg">Camera offline — press Start to begin</div>
       </div>
       <img id="video-img" src="" alt="Live feed" style="display:none"/>
     </div>
@@ -310,6 +336,7 @@ body.kiosk .stats-row { grid-template-columns:repeat(4,1fr); }
       <div class="stat people">
         <div class="lbl" data-i18n="stat_people">People</div>
         <div class="val" id="stat-count">–</div>
+        <div class="sub" id="stat-count-sub">&nbsp;</div>
       </div>
       <div class="stat objects">
         <div class="lbl" data-i18n="stat_objects">Objects</div>
@@ -319,245 +346,272 @@ body.kiosk .stats-row { grid-template-columns:repeat(4,1fr); }
         <div class="lbl">FPS</div>
         <div class="val" id="stat-fps">–</div>
       </div>
-      <div class="stat alerted">
+      <div class="stat alerts-s">
         <div class="lbl" data-i18n="stat_alerts">Alerts</div>
         <div class="val" id="stat-alerts">0</div>
       </div>
     </div>
 
+    <!-- Phantom Vision -->
+    <div class="vision-panel">
+      <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);">
+        👁 Phantom Vision
+      </div>
+
+      <div class="vp-row">
+        <span class="vp-label" data-i18n="vm_label">Mode</span>
+        <button class="vp-btn active"         data-vmode="normal"  data-i18n="vm_normal">Normal</button>
+        <button class="vp-btn neon"           data-vmode="neon"    data-i18n="vm_neon">✨ Neon</button>
+        <button class="vp-btn thermal"        data-vmode="thermal" data-i18n="vm_thermal">🔥 Thermal</button>
+        <button class="vp-btn xray"           data-vmode="xray"    data-i18n="vm_xray">👻 X-Ray</button>
+      </div>
+
+      <div class="vp-row">
+        <span class="vp-label" data-i18n="fx_label">FX</span>
+        <button class="toggle-btn on" data-fx="trails_on"  data-i18n="fx_trails">🌈 Trails</button>
+        <button class="toggle-btn on" data-fx="network_on" data-i18n="fx_network">🕸 Network</button>
+        <button class="toggle-btn on" data-fx="predict_on" data-i18n="fx_predict">🔮 Predict</button>
+        <button class="toggle-btn"   data-fx="heatmap_on" data-i18n="fx_heatmap">🔆 Heatmap</button>
+      </div>
+    </div>
+
     <!-- Detection mode -->
-    <div class="mode-row">
-      <span class="lbl" data-i18n="detect_label">Detect:</span>
-      <button class="mode-btn active" data-mode="people"   data-i18n="mode_people">People</button>
-      <button class="mode-btn"        data-mode="objects"  data-i18n="mode_objects">Objects</button>
-      <button class="mode-btn"        data-mode="vehicles" data-i18n="mode_vehicles">Vehicles</button>
-      <button class="mode-btn"        data-mode="both"     data-i18n="mode_both">People + Objects</button>
+    <div class="detect-row">
+      <span class="detect-label" data-i18n="detect_label">Detect:</span>
+      <button class="mode-btn active" data-mode="people"   data-i18n="mode_people">👤 People</button>
+      <button class="mode-btn"        data-mode="objects"  data-i18n="mode_objects">🎒 Objects</button>
+      <button class="mode-btn"        data-mode="vehicles" data-i18n="mode_vehicles">🚗 Vehicles</button>
+      <button class="mode-btn"        data-mode="both"     data-i18n="mode_both">👤+🎒 Both</button>
       <button class="mode-btn"        data-mode="all"      data-i18n="mode_all">All</button>
     </div>
 
     <!-- Camera source -->
     <div class="cam-row">
-      <span class="lbl" data-i18n="camera_label">Camera:</span>
-      <div class="preset-btns">
-        <button class="preset-btn" data-src="0">Webcam 0</button>
-        <button class="preset-btn" data-src="1">Webcam 1</button>
-        <button class="preset-btn" data-src="http://192.168.x.x:8080/video">IP Webcam</button>
-        <button class="preset-btn" data-src="rtsp://user:pass@192.168.x.x:554/stream1">RTSP</button>
-      </div>
+      <button class="preset-btn" data-src="0">📷 Webcam 0</button>
+      <button class="preset-btn" data-src="1">📷 Webcam 1</button>
+      <button class="preset-btn" data-src="http://192.168.x.x:8080/video">📱 IP Webcam</button>
+      <button class="preset-btn" data-src="rtsp://user:pass@192.168.x.x:554/stream1">🔒 RTSP</button>
       <input id="source-input" class="cam-input"
-             placeholder="0 · /path/video.mp4 · rtsp://… · http://…"/>
+             placeholder="0  ·  /path/video.mp4  ·  rtsp://…  ·  http://…"/>
       <button class="btn btn-start" id="btn-start">▶ Start</button>
       <button class="btn btn-stop"  id="btn-stop">■ Stop</button>
-      <button class="btn btn-snap"  id="btn-snap">📷 Snap</button>
+      <button class="btn btn-snap"  id="btn-snap">📸</button>
     </div>
 
-    <!-- Count history chart -->
+    <!-- Count chart -->
     <div class="card">
-      <div class="card-title" data-i18n="chart_title">People Count – Last 60 Readings</div>
+      <div class="card-title" data-i18n="chart_title">People Count History</div>
       <div class="chart-wrap">
         <canvas id="count-chart"></canvas>
       </div>
     </div>
 
-    <!-- Error -->
     <div id="error-banner"></div>
 
   </div><!-- /left -->
 
-  <!-- RIGHT COLUMN -->
+  <!-- RIGHT -->
   <div class="right">
-
-    <!-- Activity feed -->
     <div class="card feed-wrap">
       <div class="feed-header">
-        <span data-i18n="feed_title">Activity Feed</span>
+        <span class="feed-header-title" data-i18n="feed_title">Activity Feed</span>
         <button class="feed-clear" id="btn-clear" data-i18n="btn_clear">Clear</button>
       </div>
       <div id="activity-list"></div>
     </div>
-
-  </div><!-- /right -->
+  </div>
 
 </div><!-- /layout -->
 
-<!-- Hidden canvas for snapshot -->
 <canvas id="snap-canvas" style="display:none"></canvas>
 
+<!-- ════════════════════════════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════════════════════════════ -->
 <script>
 "use strict";
-// ════════════════════════════════════════════════════════════
-//  TRANSLATIONS
-// ════════════════════════════════════════════════════════════
+
+// ── i18n ─────────────────────────────────────────────────────
 const I18N = {
   en: {
-    tagline:      "AI Crowd Surveillance · Real-time Detection",
-    offline_msg:  "Camera offline — press Start to begin",
-    stat_people:  "People",
-    stat_objects: "Objects",
-    stat_alerts:  "Alerts",
-    detect_label: "Detect:",
-    camera_label: "Camera:",
-    mode_people:  "People",
-    mode_objects: "Objects",
-    mode_vehicles:"Vehicles",
-    mode_both:    "People + Objects",
-    mode_all:     "All",
-    chart_title:  "People Count – Last 60 Readings",
-    feed_title:   "Activity Feed",
-    btn_clear:    "Clear",
-    live_on:      "LIVE",
-    live_off:     "OFFLINE",
-    btn_start:    "▶ Start",
-    btn_stop:     "■ Stop",
+    tagline:"AI Crowd Surveillance · Real-time Detection",
+    offline_msg:"Camera offline — press Start to begin",
+    stat_people:"People", stat_objects:"Objects",
+    stat_alerts:"Alerts",
+    vm_label:"Mode", vm_normal:"Normal", vm_neon:"✨ Neon",
+    vm_thermal:"🔥 Thermal", vm_xray:"👻 X-Ray",
+    fx_label:"FX", fx_trails:"🌈 Trails", fx_network:"🕸 Network",
+    fx_predict:"🔮 Predict", fx_heatmap:"🔆 Heatmap",
+    detect_label:"Detect:",
+    mode_people:"👤 People", mode_objects:"🎒 Objects",
+    mode_vehicles:"🚗 Vehicles", mode_both:"👤+🎒 Both", mode_all:"All",
+    chart_title:"People Count History",
+    feed_title:"Activity Feed", btn_clear:"Clear",
+    live_on:"LIVE", live_off:"OFFLINE",
+    crowd_sub:"⚠ CROWD LIMIT!", normal_sub:"",
   },
   ta: {
-    tagline:      "AI கூட்ட கண்காணிப்பு · நேரடி கண்டறிதல்",
-    offline_msg:  "கேமரா இல்லை — தொடங்க Start அழுத்துங்கள்",
-    stat_people:  "நபர்கள்",
-    stat_objects: "பொருள்கள்",
-    stat_alerts:  "எச்சரிக்கைகள்",
-    detect_label: "கண்டறி:",
-    camera_label: "கேமரா:",
-    mode_people:  "நபர்கள்",
-    mode_objects: "பொருள்கள்",
-    mode_vehicles:"வாகனங்கள்",
-    mode_both:    "நபர் + பொருள்",
-    mode_all:     "அனைத்தும்",
-    chart_title:  "நபர் எண்ணிக்கை – கடைசி 60 அளவீடுகள்",
-    feed_title:   "செயல்பாட்டு பதிவு",
-    btn_clear:    "அழி",
-    live_on:      "நேரடி",
-    live_off:     "நிறுத்தப்பட்டது",
-    btn_start:    "▶ தொடங்கு",
-    btn_stop:     "■ நிறுத்து",
+    tagline:"AI கூட்ட கண்காணிப்பு · நேரடி கண்டறிதல்",
+    offline_msg:"கேமரா இல்லை — தொடங்க Start அழுத்துங்கள்",
+    stat_people:"நபர்கள்", stat_objects:"பொருள்கள்",
+    stat_alerts:"எச்சரிக்கைகள்",
+    vm_label:"முறை", vm_normal:"சாதாரண", vm_neon:"✨ நியான்",
+    vm_thermal:"🔥 வெப்ப", vm_xray:"👻 எக்ஸ்-ரே",
+    fx_label:"விளைவுகள்", fx_trails:"🌈 தடம்", fx_network:"🕸 வலை",
+    fx_predict:"🔮 கணிப்பு", fx_heatmap:"🔆 வெப்பவரை",
+    detect_label:"கண்டறி:",
+    mode_people:"👤 நபர்கள்", mode_objects:"🎒 பொருள்கள்",
+    mode_vehicles:"🚗 வாகனங்கள்", mode_both:"👤+🎒 இரண்டும்", mode_all:"அனைத்தும்",
+    chart_title:"நபர் எண்ணிக்கை வரலாறு",
+    feed_title:"செயல்பாட்டு பதிவு", btn_clear:"அழி",
+    live_on:"நேரடி", live_off:"நிறுத்தம்",
+    crowd_sub:"⚠ கூட்ட வரம்பு!", normal_sub:"",
   },
 };
 
 let LANG = "en";
+let isLive = false;
 
 function applyLang() {
   document.querySelectorAll("[data-i18n]").forEach(el => {
-    const key = el.dataset.i18n;
-    if (I18N[LANG][key]) el.textContent = I18N[LANG][key];
+    const k = el.dataset.i18n;
+    if (I18N[LANG][k]) el.textContent = I18N[LANG][k];
   });
-  document.getElementById("btn-start").textContent = I18N[LANG].btn_start;
-  document.getElementById("btn-stop").textContent  = I18N[LANG].btn_stop;
   document.getElementById("live-label").textContent =
     isLive ? I18N[LANG].live_on : I18N[LANG].live_off;
 }
 
-document.querySelectorAll(".lang-btn").forEach(b => {
-  b.addEventListener("click", () => {
-    LANG = b.dataset.lang;
-    document.querySelectorAll(".lang-btn").forEach(x => x.classList.remove("active"));
-    b.classList.add("active");
-    applyLang();
-  });
-});
+document.querySelectorAll(".lang-btn").forEach(b => b.addEventListener("click", () => {
+  LANG = b.dataset.lang;
+  document.querySelectorAll(".lang-btn").forEach(x => x.classList.remove("active"));
+  b.classList.add("active");
+  applyLang();
+}));
 
-// ════════════════════════════════════════════════════════════
-//  SOUND
-// ════════════════════════════════════════════════════════════
+// ── Sound (beep via Web Audio) ────────────────────────────────
 let soundOn = false;
-const soundBtn = document.getElementById("sound-toggle");
-soundBtn.addEventListener("click", () => {
+const voiceBtn = document.getElementById("voice-btn");
+voiceBtn.addEventListener("click", async () => {
   soundOn = !soundOn;
-  soundBtn.textContent = soundOn ? "🔔 Sound" : "🔕 Sound";
-  soundBtn.classList.toggle("on", soundOn);
+  voiceBtn.textContent = soundOn ? "🔔 Voice" : "🔕 Voice";
+  voiceBtn.classList.toggle("on", soundOn);
+  await fetch("/vision",{method:"POST",headers:{"Content-Type":"application/json"},
+               body:JSON.stringify({voice_on: soundOn, voice_lang: LANG})});
 });
 
-function playBeep() {
+function playBeep(type) {
   if (!soundOn) return;
   try {
-    const ctx = new AudioContext();
-    const osc = ctx.createOscillator();
+    const ctx  = new AudioContext();
+    const osc  = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain); gain.connect(ctx.destination);
-    osc.frequency.value = 880;
-    gain.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
-    osc.start(); osc.stop(ctx.currentTime + 0.35);
-  } catch(e) {}
+    const freqs = {Running:1050, Loitering:660, CrowdLimit:440};
+    osc.frequency.value = freqs[type] || 880;
+    gain.gain.setValueAtTime(0.25, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    osc.start(); osc.stop(ctx.currentTime + 0.4);
+  } catch(e){}
 }
 
-// ════════════════════════════════════════════════════════════
-//  CHART
-// ════════════════════════════════════════════════════════════
-const chartCtx = document.getElementById("count-chart").getContext("2d");
-const countChart = new Chart(chartCtx, {
-  type: "line",
-  data: {
-    labels: [],
-    datasets: [{
-      label: "People",
-      data: [],
-      borderColor: "#38bdf8",
-      backgroundColor: "rgba(56,189,248,0.1)",
-      borderWidth: 2,
-      pointRadius: 2,
-      tension: 0.4,
-      fill: true,
-    }],
-  },
-  options: {
-    responsive: true,
-    animation: false,
-    plugins: { legend: { display: false } },
-    scales: {
-      x: { display: false },
-      y: {
-        beginAtZero: true,
-        grid: { color: "#1e2d46" },
-        ticks: { color: "#4a6080", font:{size:10} },
-      },
+// ── Chart ─────────────────────────────────────────────────────
+const chart = new Chart(
+  document.getElementById("count-chart").getContext("2d"), {
+  type:"line",
+  data:{labels:[],datasets:[{
+    label:"People",data:[],
+    borderColor:"#00d4ff",backgroundColor:"rgba(0,212,255,.08)",
+    borderWidth:2,pointRadius:2,tension:0.4,fill:true,
+  }]},
+  options:{
+    responsive:true,animation:false,
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{display:false},
+      y:{beginAtZero:true,
+         grid:{color:"#1a2840"},
+         ticks:{color:"#3a5070",font:{size:10}}},
     },
   },
 });
 
 async function refreshChart() {
   try {
-    const res  = await fetch("/counts/history");
-    const data = await res.json();
-    countChart.data.labels   = data.map(d => d.t.slice(11,19));
-    countChart.data.datasets[0].data = data.map(d => d.v);
-    countChart.update("none");
-  } catch(e) {}
+    const r = await fetch("/counts/history");
+    const d = await r.json();
+    chart.data.labels = d.map(x => x.t.slice(11,19));
+    chart.data.datasets[0].data = d.map(x => x.v);
+    chart.update("none");
+  } catch(e){}
 }
 
-// ════════════════════════════════════════════════════════════
-//  ALERT FEED
-// ════════════════════════════════════════════════════════════
-let alertCount   = 0;
+// ── Crowd Pulse (background ambiance) ─────────────────────────
+let stormTimer = null;
+function updateCrowdPulse(count, threshold) {
+  const root  = document.documentElement;
+  const ratio = Math.min(count / threshold, 1.5);
+  const wrap  = document.getElementById("video-wrap");
+  const storm = document.getElementById("storm");
+  const sub   = document.getElementById("stat-count-sub");
+
+  if (ratio < 0.4) {
+    root.style.setProperty("--pulse-color","#000d1a");
+    root.style.setProperty("--pulse-alpha","0");
+    wrap.classList.remove("crowded");
+    storm.classList.remove("active");
+    sub.textContent = "";
+  } else if (ratio < 0.7) {
+    root.style.setProperty("--pulse-color","#1a1000");
+    root.style.setProperty("--pulse-alpha", String(ratio * 0.3));
+    wrap.classList.remove("crowded");
+    storm.classList.remove("active");
+    sub.textContent = "";
+  } else if (ratio < 1.0) {
+    root.style.setProperty("--pulse-color","#1a0800");
+    root.style.setProperty("--pulse-alpha", String(ratio * 0.4));
+    wrap.classList.remove("crowded");
+    storm.classList.remove("active");
+    sub.textContent = "⚠ Approaching limit";
+  } else {
+    // Crowd limit hit!
+    root.style.setProperty("--pulse-color","#1a0005");
+    root.style.setProperty("--pulse-alpha","0.5");
+    wrap.classList.add("crowded");
+    storm.classList.add("active");
+    sub.textContent = I18N[LANG].crowd_sub;
+    // Auto-remove storm after 3s
+    clearTimeout(stormTimer);
+    stormTimer = setTimeout(() => storm.classList.remove("active"), 3000);
+  }
+}
+
+// ── Activity Feed ─────────────────────────────────────────────
+let alertCount = 0;
 let knownAlertIds = new Set();
 const activityList = document.getElementById("activity-list");
 
-function badgeClass(type) {
-  return { Running:"badge-Running", Loitering:"badge-Loitering",
-           CrowdLimit:"badge-CrowdLimit", Manual:"badge-Manual" }[type]
-         || "badge-default";
-}
+const TYPE_META = {
+  Running:    {icon:"🏃", label_en:"Running",      label_ta:"ஓடுகிறார்"},
+  Loitering:  {icon:"🕐", label_en:"Loitering",    label_ta:"தாமதம்"},
+  CrowdLimit: {icon:"⚠️",  label_en:"Crowd Alert",  label_ta:"கூட்ட எச்சரிக்கை"},
+  Manual:     {icon:"📌", label_en:"Note",          label_ta:"குறிப்பு"},
+};
 
+function badgeClass(t) {
+  return {Running:"badge-Running",Loitering:"badge-Loitering",
+          CrowdLimit:"badge-CrowdLimit",Manual:"badge-Manual"}[t] || "badge-default";
+}
 function timeStr(ts) {
   if (!ts) return "";
   const d = new Date(ts.replace(" ","T"));
   return isNaN(d) ? ts : d.toLocaleTimeString();
 }
 
-// Icons and friendly labels for each alert type
-const TYPE_META = {
-  Running:    { icon: "🏃", label_en: "Running",      label_ta: "ஓடுகிறார்" },
-  Loitering:  { icon: "🕐", label_en: "Loitering",    label_ta: "தாமதம்" },
-  CrowdLimit: { icon: "⚠️",  label_en: "Crowd Alert",  label_ta: "கூட்ட எச்சரிக்கை" },
-  Manual:     { icon: "📌", label_en: "Note",          label_ta: "குறிப்பு" },
-};
-
 function prependAlert(al) {
-  // Use the parsed clean fields from the server
   const en = al.details_en || al.details || "";
   const ta = al.details_ta || "";
-  const meta = TYPE_META[al.type] || { icon: "🔔", label_en: al.type, label_ta: al.type };
+  const meta = TYPE_META[al.type] || {icon:"🔔", label_en:al.type, label_ta:al.type};
 
-  // Primary text = current language; secondary text = the other language
   const primary   = (LANG === "ta" && ta) ? ta : en;
   const secondary = (LANG === "ta" && ta) ? en : ta;
   const badgeLabel = LANG === "ta" ? meta.label_ta : meta.label_en;
@@ -572,7 +626,7 @@ function prependAlert(al) {
     <div class="en">${primary}</div>
     ${secondary ? `<div class="ta">${secondary}</div>` : ""}`;
   activityList.prepend(div);
-  playBeep();
+  playBeep(al.type);
 }
 
 document.getElementById("btn-clear").addEventListener("click", () => {
@@ -582,34 +636,32 @@ document.getElementById("btn-clear").addEventListener("click", () => {
   document.getElementById("stat-alerts").textContent = "0";
 });
 
-// ════════════════════════════════════════════════════════════
-//  STATUS POLL
-// ════════════════════════════════════════════════════════════
-let isLive = false;
-let prevCount = 0;
+// ── Status poll ───────────────────────────────────────────────
+const CROWD_THRESHOLD = 8;   // keep in sync with config.py
 
 async function poll() {
   try {
-    const [statusRes, alertsRes] = await Promise.all([
-      fetch("/status"),
-      fetch("/alerts?limit=60"),
+    const [sr, ar] = await Promise.all([
+      fetch("/status"), fetch("/alerts?limit=60"),
     ]);
-    const s = await statusRes.json();
-    const alerts = await alertsRes.json();
+    const s = await sr.json();
+    const alerts = await ar.json();
 
     // Stats
     const countEl = document.getElementById("stat-count");
     countEl.textContent = s.count ?? "–";
-    countEl.style.color = s.count >= 8 ? "var(--red)" : "var(--accent)";
+    countEl.style.color = (s.count >= CROWD_THRESHOLD) ? "var(--red)" : "var(--accent)";
     document.getElementById("stat-objects").textContent = s.obj_count ?? "–";
-    document.getElementById("stat-fps").textContent     = s.fps != null ? s.fps.toFixed(1) : "–";
+    document.getElementById("stat-fps").textContent = s.fps != null ? s.fps.toFixed(1) : "–";
+
+    updateCrowdPulse(s.count || 0, CROWD_THRESHOLD);
 
     // Error
     const eb = document.getElementById("error-banner");
     if (s.error) { eb.textContent = "⚠ " + s.error; eb.style.display = "block"; }
-    else { eb.style.display = "none"; }
+    else eb.style.display = "none";
 
-    // Live state
+    // Live indicator
     isLive = s.running;
     const pill = document.getElementById("live-pill");
     pill.classList.toggle("on", isLive);
@@ -627,41 +679,39 @@ async function poll() {
       off.style.display = "flex";
     }
 
-    // Sync mode buttons
-    document.querySelectorAll(".mode-btn").forEach(b => {
-      b.classList.toggle("active", b.dataset.mode === s.mode);
-    });
+    // Sync detection mode buttons
+    document.querySelectorAll(".mode-btn").forEach(b =>
+      b.classList.toggle("active", b.dataset.mode === s.mode));
 
-    // New alerts from DB
-    let newAlerts = 0;
+    // Sync vision mode buttons
+    document.querySelectorAll(".vp-btn[data-vmode]").forEach(b =>
+      b.classList.toggle("active", b.dataset.vmode === s.vision));
+
+    // New DB alerts
+    let newCount = 0;
     for (const al of alerts) {
       if (!knownAlertIds.has(al.id)) {
         knownAlertIds.add(al.id);
         prependAlert(al);
-        newAlerts++;
+        newCount++;
+        document.querySelector(".stat.alerts-s").classList.add("flash");
+        setTimeout(() => document.querySelector(".stat.alerts-s")?.classList.remove("flash"), 700);
       }
     }
-    if (newAlerts > 0) {
+    if (newCount > 0) {
       alertCount = knownAlertIds.size;
       document.getElementById("stat-alerts").textContent = alertCount;
     }
-
-  } catch(e) {
-    console.warn("poll:", e);
-  }
+  } catch(e) { console.warn("poll:", e); }
 }
 
-// ════════════════════════════════════════════════════════════
-//  CONTROLS
-// ════════════════════════════════════════════════════════════
+// ── Controls ──────────────────────────────────────────────────
 document.getElementById("btn-start").addEventListener("click", async () => {
   const raw = document.getElementById("source-input").value.trim();
   const src = raw === "" ? 0 : (/^\d+$/.test(raw) ? parseInt(raw) : raw);
-  const r = await fetch("/start", {
-    method:"POST",
+  const r = await fetch("/start",{method:"POST",
     headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({source: src}),
-  });
+    body:JSON.stringify({source:src})});
   const d = await r.json();
   if (!d.started) {
     const eb = document.getElementById("error-banner");
@@ -670,65 +720,69 @@ document.getElementById("btn-start").addEventListener("click", async () => {
 });
 
 document.getElementById("btn-stop").addEventListener("click", async () => {
-  await fetch("/stop", {method:"POST"});
-  const img = document.getElementById("video-img");
-  img.style.display = "none";
+  await fetch("/stop",{method:"POST"});
+  document.getElementById("video-img").style.display = "none";
   document.getElementById("video-offline").style.display = "flex";
   isLive = false;
   document.getElementById("live-pill").classList.remove("on");
-  document.getElementById("stat-count").textContent   = "–";
-  document.getElementById("stat-fps").textContent     = "–";
-  document.getElementById("stat-objects").textContent = "–";
+  ["stat-count","stat-fps","stat-objects"].forEach(id =>
+    document.getElementById(id).textContent = "–");
+  updateCrowdPulse(0, CROWD_THRESHOLD);
 });
 
-// Preset buttons → fill input
-document.querySelectorAll(".preset-btn").forEach(b => {
-  b.addEventListener("click", () => {
-    document.getElementById("source-input").value = b.dataset.src;
-  });
-});
+// Preset camera buttons
+document.querySelectorAll(".preset-btn").forEach(b =>
+  b.addEventListener("click", () =>
+    document.getElementById("source-input").value = b.dataset.src));
 
 // Detection mode
-document.querySelectorAll(".mode-btn").forEach(b => {
-  b.addEventListener("click", async () => {
-    document.querySelectorAll(".mode-btn").forEach(x => x.classList.remove("active"));
-    b.classList.add("active");
-    await fetch("/config", {
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({detection_mode: b.dataset.mode}),
-    });
-  });
-});
+document.querySelectorAll(".mode-btn").forEach(b => b.addEventListener("click", async () => {
+  document.querySelectorAll(".mode-btn").forEach(x => x.classList.remove("active"));
+  b.classList.add("active");
+  await fetch("/config",{method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({detection_mode: b.dataset.mode})});
+}));
 
-// ── Snapshot ──────────────────────────────────────────────
+// Vision mode
+document.querySelectorAll(".vp-btn[data-vmode]").forEach(b => b.addEventListener("click", async () => {
+  document.querySelectorAll(".vp-btn[data-vmode]").forEach(x => x.classList.remove("active"));
+  b.classList.add("active");
+  await fetch("/vision",{method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({vision_mode: b.dataset.vmode})});
+}));
+
+// FX toggles
+document.querySelectorAll(".toggle-btn[data-fx]").forEach(b => b.addEventListener("click", async () => {
+  b.classList.toggle("on");
+  const isOn = b.classList.contains("on");
+  await fetch("/vision",{method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({[b.dataset.fx]: isOn})});
+}));
+
+// Snapshot
 document.getElementById("btn-snap").addEventListener("click", () => {
   const img = document.getElementById("video-img");
   if (img.style.display === "none") return;
   const c = document.getElementById("snap-canvas");
-  c.width = img.naturalWidth || img.width;
+  c.width  = img.naturalWidth  || img.width;
   c.height = img.naturalHeight || img.height;
-  c.getContext("2d").drawImage(img, 0, 0);
+  c.getContext("2d").drawImage(img,0,0);
   const a = document.createElement("a");
   a.href = c.toDataURL("image/png");
   a.download = "watchdog_" + new Date().toISOString().replace(/[:.]/g,"-") + ".png";
   a.click();
 });
 
-// ── Kiosk mode ────────────────────────────────────────────
-document.getElementById("btn-kiosk").addEventListener("click", () => {
-  if (document.fullscreenElement) {
-    document.exitFullscreen();
-    document.body.classList.remove("kiosk");
-  } else {
-    document.documentElement.requestFullscreen();
-    document.body.classList.add("kiosk");
-  }
+// Kiosk / fullscreen
+document.getElementById("kiosk-btn").addEventListener("click", () => {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen();
 });
 
-// ════════════════════════════════════════════════════════════
-//  BOOT
-// ════════════════════════════════════════════════════════════
+// ── Boot ──────────────────────────────────────────────────────
 applyLang();
 poll();
 setInterval(poll, 1200);

@@ -1,7 +1,6 @@
+# -*- coding: utf-8 -*-
 """
-WatchDog – Flask server (v2).
-Run:  python app.py
-Open: http://localhost:5000
+WatchDog – Flask server (v3).
 """
 
 import time
@@ -21,15 +20,19 @@ db.init_db()
 
 # ── Video stream ──────────────────────────────────────────────────────────────
 def _placeholder_jpg() -> bytes:
-    img = np.full((480, 640, 3), 25, np.uint8)
-    cv2.putText(img, "WatchDog", (200, 220), cv2.FONT_HERSHEY_SIMPLEX, 1.4, (60,60,60), 2)
-    cv2.putText(img, "Camera Offline", (195, 270), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (80,80,80), 1)
-    cv2.putText(img, "Press Start to begin", (175, 320), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (60,60,60), 1)
+    img = np.full((480, 640, 3), 18, np.uint8)
+    cv2.putText(img, "WatchDog", (205, 215),
+                cv2.FONT_HERSHEY_SIMPLEX, 1.4, (45,45,45), 2)
+    cv2.putText(img, "PHANTOM VISION", (170, 260),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,80,120), 2)
+    cv2.putText(img, "Press Start to begin", (178, 310),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (40,40,40), 1)
     _, buf = cv2.imencode(".jpg", img)
     return buf.tobytes()
 
 
 _PLACEHOLDER = None
+
 
 def _gen_frames():
     global _PLACEHOLDER
@@ -61,6 +64,7 @@ def status():
         "alerts":    s["alerts"],
         "error":     s.get("error"),
         "mode":      pipeline._cfg.get("detection_mode", "people"),
+        "vision":    pipeline._cfg.get("vision_mode", "normal"),
     })
 
 
@@ -76,7 +80,7 @@ def post_alert():
     db.log_alert(
         camera_id=data.get("camera", 1),
         event_type=data.get("type", "Manual"),
-        details={"details": data.get("details", ""), "details_ta": data.get("details_ta", "")},
+        details={"details": data.get("details",""), "details_ta": data.get("details_ta","")},
     )
     return jsonify({"ok": True})
 
@@ -90,7 +94,6 @@ def cameras():
 def start():
     data   = request.get_json(force=True) or {}
     source = data.get("source", CAMERA_SOURCE)
-    # Convert numeric strings to int
     if isinstance(source, str) and source.isdigit():
         source = int(source)
     ok, msg = pipeline.start(source)
@@ -113,15 +116,20 @@ def config():
     return jsonify({"ok": False, "message": "Nothing to configure"})
 
 
+@app.route("/vision", methods=["POST"])
+def vision():
+    data = request.get_json(force=True) or {}
+    ok, msg = pipeline.set_vision(data)
+    return jsonify({"ok": ok, "message": msg})
+
+
 @app.route("/counts/history")
 def counts_history():
-    """Return last 60 count log entries for the chart."""
     with db._conn() as c:
         rows = c.execute(
             "SELECT timestamp, count FROM counts ORDER BY id DESC LIMIT 60"
         ).fetchall()
-    data = [{"t": r["timestamp"], "v": r["count"]} for r in reversed(rows)]
-    return jsonify(data)
+    return jsonify([{"t": r["timestamp"], "v": r["count"]} for r in reversed(rows)])
 
 
 @app.route("/")
