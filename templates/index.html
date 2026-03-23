@@ -56,7 +56,7 @@ header{display:flex;align-items:center;gap:12px;padding:10px 18px;background:lin
 .video-offline .msg{font-size:.9rem;opacity:.5;}
 
 /* ── Stats ───────────────────────────────────────────────────── */
-.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.stats-row{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;}
 .stat{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;transition:border-color .4s,box-shadow .4s;}
 .stat.flash{border-color:var(--red);box-shadow:0 0 14px rgba(255,40,85,.3);}
 .stat .lbl{font-size:.62rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);}
@@ -160,6 +160,9 @@ header{display:flex;align-items:center;gap:12px;padding:10px 18px;background:lin
 .badge-Manual{background:#022c22;color:#6ee7b7;border:1px solid #065f46;}
 .badge-Eliminated{background:#4c0000;color:#ff8080;border:1px solid #cc0000;}
 .badge-Winner{background:#2a1a00;color:var(--gold);border:1px solid #8a6000;}
+.badge-Activity{background:#002a1a;color:#44cc88;border:1px solid #00884a;}
+.badge-Threat{background:#4c0000;color:#ff8080;border:1px solid #cc0000;}
+.badge-Anomaly{background:#1e1b4b;color:#c4b5fd;border:1px solid #4338ca;}
 .badge-default{background:#1e293b;color:#94a3b8;border:1px solid #334155;}
 .feed-item .ts{font-size:.62rem;color:var(--muted);margin-left:auto;flex-shrink:0;}
 .feed-item .en{font-size:.8rem;color:var(--text);line-height:1.4;}
@@ -280,10 +283,58 @@ body.nm .winners-wrap{display:none;}
 body.nm #finish-canvas{display:none;}
 #game-panel.nm{border-color:var(--border) !important;box-shadow:none !important;}
 
+/* ── AI Analytics panels ─────────────────────────────────────── */
+.analytics-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.an-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;}
+.an-card-title{font-size:.62rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:8px;}
+.an-big{font-size:1.8rem;font-weight:900;font-variant-numeric:tabular-nums;}
+.an-sub{font-size:.68rem;color:var(--muted);margin-top:2px;}
+.an-row{display:flex;justify-content:space-between;align-items:center;padding:3px 0;}
+.an-label{font-size:.72rem;color:var(--muted);}
+.an-val{font-size:.72rem;font-weight:700;}
+
+.risk-badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;}
+.risk-low{background:#022c22;color:var(--green);border:1px solid #065f46;}
+.risk-moderate{background:#451a03;color:var(--yellow);border:1px solid #92400e;}
+.risk-high{background:#4c0519;color:var(--orange);border:1px solid #9f1239;}
+.risk-critical{background:#4c0000;color:var(--red);border:1px solid #cc0000;animation:risk-pulse 1s infinite alternate;}
+@keyframes risk-pulse{from{box-shadow:none;}to{box-shadow:0 0 12px rgba(255,40,85,.5);}}
+
+.trend-up{color:var(--red);}
+.trend-down{color:var(--green);}
+.trend-stable{color:var(--muted);}
+.trend-icon{font-size:1.1rem;margin-right:4px;}
+
+.threat-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #0d1624;font-size:.75rem;}
+.threat-item:last-child{border-bottom:none;}
+.threat-sev{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.threat-sev.critical{background:var(--red);box-shadow:0 0 6px var(--red);}
+.threat-sev.high{background:var(--orange);}
+.threat-sev.medium{background:var(--yellow);}
+
+.zone-item{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #0d1624;font-size:.72rem;}
+.zone-item:last-child{border-bottom:none;}
+.zone-tag{padding:2px 8px;border-radius:4px;font-size:.6rem;font-weight:700;text-transform:uppercase;background:#4c0519;color:#fda4af;border:1px solid #9f1239;}
+.zone-add-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px;}
+.zone-input{width:60px;padding:4px 6px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:.72rem;}
+.zone-name-input{width:90px;}
+.zone-btn{padding:4px 10px;border-radius:5px;border:1px solid var(--green);background:transparent;color:var(--green);font-size:.68rem;font-weight:700;cursor:pointer;transition:all .2s;}
+.zone-btn:hover{background:var(--green);color:#022c22;}
+.zone-btn-clear{border-color:var(--red);color:var(--red);}
+.zone-btn-clear:hover{background:var(--red);color:#fff;}
+
+.prediction-chart-wrap{padding:8px 0;}
+.prediction-chart-wrap canvas{max-height:100px;}
+
+.factor-list{display:flex;flex-direction:column;gap:3px;margin-top:4px;}
+.factor-item{font-size:.68rem;color:var(--muted);padding:2px 0;}
+.factor-item::before{content:"• ";color:var(--orange);}
+
 /* ── Responsive ──────────────────────────────────────────────── */
 @media(max-width:980px){
   .layout{grid-template-columns:1fr;}
-  .stats-row{grid-template-columns:repeat(2,1fr);}
+  .stats-row{grid-template-columns:repeat(3,1fr);}
+  .analytics-grid{grid-template-columns:1fr;}
 }
 </style>
 </head>
@@ -344,6 +395,14 @@ body.nm #finish-canvas{display:none;}
       <div class="stat alerts-s">
         <div class="lbl" data-i18n="stat_alerts">Alerts</div>
         <div class="val" id="stat-alerts">0</div>
+      </div>
+      <div class="stat" style="--stat-c:var(--orange);">
+        <div class="lbl">Threats</div>
+        <div class="val" id="stat-threats" style="color:var(--orange);">0</div>
+      </div>
+      <div class="stat">
+        <div class="lbl">Risk</div>
+        <div class="val" id="stat-risk" style="color:var(--green);font-size:1.2rem;">LOW</div>
       </div>
     </div>
 
@@ -433,6 +492,41 @@ body.nm #finish-canvas{display:none;}
       <div class="chart-wrap"><canvas id="count-chart"></canvas></div>
     </div>
 
+    <!-- AI Analytics -->
+    <div class="analytics-grid">
+      <div class="an-card">
+        <div class="an-card-title">Crowd Trend</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="trend-icon" id="trend-icon">—</span>
+          <span class="an-big" id="trend-rate">0</span>
+          <span class="an-sub">/min</span>
+        </div>
+        <div class="an-row"><span class="an-label">5-min forecast</span><span class="an-val" id="pred-5">–</span></div>
+        <div class="an-row"><span class="an-label">15-min forecast</span><span class="an-val" id="pred-15">–</span></div>
+        <div class="an-row"><span class="an-label">Confidence</span><span class="an-val" id="pred-conf">–</span></div>
+        <div class="an-row"><span class="an-label">Peak today</span><span class="an-val" id="pred-peak">–</span></div>
+      </div>
+      <div class="an-card">
+        <div class="an-card-title">Risk Assessment</div>
+        <div style="text-align:center;margin:8px 0;">
+          <span class="risk-badge risk-low" id="risk-badge">LOW</span>
+        </div>
+        <div class="an-row"><span class="an-label">Score</span><span class="an-val" id="risk-score">0 / 100</span></div>
+        <div class="factor-list" id="risk-factors"></div>
+      </div>
+      <div class="an-card">
+        <div class="an-card-title">Crowd Stats</div>
+        <div class="an-row"><span class="an-label">Avg Speed</span><span class="an-val" id="cs-speed">–</span></div>
+        <div class="an-row"><span class="an-label">Density</span><span class="an-val" id="cs-density">–</span></div>
+        <div class="an-row"><span class="an-label">Spread</span><span class="an-val" id="cs-spread">–</span></div>
+        <div class="an-row"><span class="an-label">Direction</span><span class="an-val" id="cs-direction">–</span></div>
+      </div>
+      <div class="an-card">
+        <div class="an-card-title">Prediction Chart</div>
+        <div class="prediction-chart-wrap"><canvas id="pred-chart"></canvas></div>
+      </div>
+    </div>
+
     <div id="error-banner"></div>
   </div><!-- /left -->
 
@@ -467,6 +561,29 @@ body.nm #finish-canvas{display:none;}
       </div>
       <div id="winners-list">
         <div id="winners-empty" data-i18n="winners_empty">No winners yet</div>
+      </div>
+    </div>
+
+    <!-- Threat alerts -->
+    <div class="card" style="padding:12px 14px;">
+      <div class="an-card-title">Threat Alerts</div>
+      <div id="threat-list" style="max-height:160px;overflow-y:auto;scrollbar-width:thin;">
+        <div style="font-size:.75rem;color:var(--muted);padding:8px 0;text-align:center;">No active threats</div>
+      </div>
+    </div>
+
+    <!-- Restricted zones -->
+    <div class="card" style="padding:12px 14px;">
+      <div class="an-card-title">Restricted Zones</div>
+      <div id="zone-list"></div>
+      <div class="zone-add-row">
+        <input class="zone-input zone-name-input" id="zone-name" placeholder="Name"/>
+        <input class="zone-input" id="zone-x1" type="number" placeholder="x1" value="50"/>
+        <input class="zone-input" id="zone-y1" type="number" placeholder="y1" value="50"/>
+        <input class="zone-input" id="zone-x2" type="number" placeholder="x2" value="250"/>
+        <input class="zone-input" id="zone-y2" type="number" placeholder="y2" value="250"/>
+        <button class="zone-btn" id="btn-add-zone">+ Add</button>
+        <button class="zone-btn zone-btn-clear" id="btn-clear-zones">Clear</button>
       </div>
     </div>
 
@@ -660,9 +777,23 @@ const TYPE_META={
   Manual:{icon:"📌",label_en:"Note",label_ta:"குறிப்பு"},
   Eliminated:{icon:"💀",label_en:"Eliminated",label_ta:"நீக்கப்பட்டார்"},
   Winner:{icon:"🏆",label_en:"Winner!",label_ta:"வெற்றி!"},
+  "Anomaly:Stampede":{icon:"🚨",label_en:"Stampede",label_ta:"நெருக்கடி"},
+  "Anomaly:Dispersal":{icon:"💨",label_en:"Dispersal",label_ta:"சிதறல்"},
+  "Anomaly:Convergence":{icon:"🎯",label_en:"Convergence",label_ta:"குவிப்பு"},
+  "Anomaly:DensitySpike":{icon:"📈",label_en:"Density Spike",label_ta:"அடர்த்தி"},
+  "Anomaly:FlowReversal":{icon:"🔄",label_en:"Flow Reversal",label_ta:"திசை மாற்றம்"},
+  "Threat:Fall":{icon:"🆘",label_en:"Fall Detected",label_ta:"விழுந்தது"},
+  "Threat:Fire":{icon:"🔥",label_en:"Fire Detected",label_ta:"தீ"},
+  "Threat:Intrusion":{icon:"🚫",label_en:"Intrusion",label_ta:"ஊடுருவல்"},
+  "Threat:CrushRisk":{icon:"⚠️",label_en:"Crush Risk",label_ta:"நெரிசல் ஆபத்து"},
+  Activity:{icon:"👁",label_en:"Activity",label_ta:"செயல்பாடு"},
 };
-function badgeClass(t){return({Running:"badge-Running",Loitering:"badge-Loitering",CrowdLimit:"badge-CrowdLimit",
-  Manual:"badge-Manual",Eliminated:"badge-Eliminated",Winner:"badge-Winner"})[t]||"badge-default";}
+function badgeClass(t){
+  if(t.startsWith("Threat:"))return"badge-Threat";
+  if(t.startsWith("Anomaly:"))return"badge-Anomaly";
+  return({Running:"badge-Running",Loitering:"badge-Loitering",CrowdLimit:"badge-CrowdLimit",
+  Manual:"badge-Manual",Eliminated:"badge-Eliminated",Winner:"badge-Winner",Activity:"badge-Activity"})[t]||"badge-default";
+}
 function timeStr(ts){if(!ts)return"";const d=new Date(ts.replace(" ","T"));return isNaN(d)?ts:d.toLocaleTimeString();}
 function prependAlert(al){
   const en=al.details_en||al.details||"",ta=al.details_ta||"";
@@ -810,7 +941,7 @@ function updateGamePanel(gs){
     prevPhase=gs.current_phase;
   }
 
-  renderPlayers(gs.players,gs.target_name||"");
+  if(isGameMode) renderPlayers(gs.players,gs.target_name||"");
   renderWinners(gs.winners||[]);
   // Sync finish line from backend
   if(gs.win_zone_y&&gs.win_zone_y!==finLineY){
@@ -856,6 +987,52 @@ function renderPlayers(players,targetName){
       </div>
       <div class="player-move">${p.movement>2?p.movement.toFixed(1)+"px":""}</div>`;
     list.appendChild(div);
+  }
+}
+
+/* ── Tracked people (Normal mode) ────────────────────────────── */
+const ACTIVITY_ICONS={standing:"🧍",walking:"🚶",running:"🏃",sitting:"🪑",bending:"🙇",loitering:"🕐"};
+const ACTIVITY_COLORS={standing:"#8899aa",walking:"#00d4ff",running:"#ff4444",sitting:"#44cc88",bending:"#ffaa00",loitering:"#ff8800"};
+let prevActivities={};
+function renderTrackedPeople(tracks){
+  const list=document.getElementById("player-list");
+  const sub=document.getElementById("player-count-sub");
+  const empty=document.getElementById("player-empty");
+  if(!tracks||tracks.length===0){
+    list.innerHTML="";list.appendChild(empty);sub.textContent="";return;
+  }
+  sub.textContent=tracks.length+" tracked";
+  list.innerHTML="";
+  for(const t of tracks){
+    if(t.class_id!==0)continue;
+    const activity=LANG==="ta"?(t.activity_ta||t.activity_en||""):t.activity_en||"";
+    const actKey=(t.activity_en||"standing").toLowerCase();
+    const icon=ACTIVITY_ICONS[actKey]||"🧍";
+    const color=ACTIVITY_COLORS[actKey]||"#8899aa";
+    const displayName=t.name||`ID${t.id}`;
+    const ini=t.name?t.name.charAt(0).toUpperCase():String(t.id);
+    const div=document.createElement("div");
+    div.className="player-item alive";
+    div.innerHTML=`<div class="player-avatar">${ini}</div>
+      <div class="player-info">
+        <div class="player-name">${displayName}</div>
+        <div class="player-status" style="color:${color}">${icon} ${activity}</div>
+      </div>
+      <div class="player-move"></div>`;
+    list.appendChild(div);
+    // Emit activity change to feed
+    const prevAct=prevActivities[t.id];
+    if(prevAct && prevAct!==actKey && actKey!=="standing"){
+      const feedId="act_"+t.id+"_"+actKey+"_"+Math.floor(Date.now()/5000);
+      if(!knownAlertIds.has(feedId)){
+        knownAlertIds.add(feedId);
+        prependAlert({type:"Activity",
+          details_en:`${displayName}: ${t.activity_en}`,
+          details_ta:`${displayName}: ${t.activity_ta||t.activity_en}`,
+          timestamp:new Date().toISOString()});
+      }
+    }
+    prevActivities[t.id]=actKey;
   }
 }
 
@@ -909,7 +1086,19 @@ async function poll(){
       document.querySelector(".stat.alerts-s").classList.add("flash");
       setTimeout(()=>document.querySelector(".stat.alerts-s")?.classList.remove("flash"),700);}}
     if(newC){alertCount=knownAlertIds.size;document.getElementById("stat-alerts").textContent=alertCount;}
+    // Threat / risk quick stats
+    const thr=s.threats||[];
+    document.getElementById("stat-threats").textContent=thr.length;
+    const rl=(s.risk&&s.risk.risk_level)||"low";
+    const riskEl=document.getElementById("stat-risk");
+    riskEl.textContent=rl.toUpperCase();
+    riskEl.style.color=rl==="critical"?"var(--red)":rl==="high"?"var(--orange)":rl==="moderate"?"var(--yellow)":"var(--green)";
+
     if(s.game)updateGamePanel(s.game);
+    // In Normal mode, show tracked people with activity from s.tracks
+    if(!isGameMode && s.tracks){
+      renderTrackedPeople(s.tracks);
+    }
     drawFinishLineCanvas();
   }catch(e){console.warn("poll:",e);}
 }
@@ -1051,6 +1240,98 @@ document.getElementById("btn-register").addEventListener("click",async()=>{
   }catch(e){st.textContent="Request failed.";st.className="err";}
 });
 
+/* ── AI Analytics ────────────────────────────────────────────── */
+const predChart=new Chart(document.getElementById("pred-chart").getContext("2d"),{
+  type:"line",
+  data:{labels:[],datasets:[{label:"Count",data:[],borderColor:"#00d4ff",backgroundColor:"rgba(0,212,255,.08)",borderWidth:1.5,pointRadius:1,tension:.3,fill:true}]},
+  options:{responsive:true,animation:false,plugins:{legend:{display:false}},
+    scales:{x:{display:true,ticks:{color:"#3a5070",font:{size:8},maxTicksLimit:8}},y:{beginAtZero:true,grid:{color:"#1a2840"},ticks:{color:"#3a5070",font:{size:9}}}}},
+});
+
+async function pollAnalytics(){
+  try{
+    const r=await fetch("/analytics/full");const d=await r.json();
+
+    // Prediction
+    const p=d.prediction||{};
+    const trendEl=document.getElementById("trend-icon");
+    const rateEl=document.getElementById("trend-rate");
+    if(p.trend==="rising"){trendEl.textContent="▲";trendEl.className="trend-icon trend-up";rateEl.style.color="var(--red)";}
+    else if(p.trend==="declining"){trendEl.textContent="▼";trendEl.className="trend-icon trend-down";rateEl.style.color="var(--green)";}
+    else{trendEl.textContent="—";trendEl.className="trend-icon trend-stable";rateEl.style.color="var(--muted)";}
+    rateEl.textContent=p.rate!=null?(p.rate>0?"+":"")+p.rate:"0";
+    document.getElementById("pred-5").textContent=p.predicted_5min??"–";
+    document.getElementById("pred-15").textContent=p.predicted_15min??"–";
+    document.getElementById("pred-conf").textContent=p.confidence!=null?Math.round(p.confidence*100)+"%":"–";
+    document.getElementById("pred-peak").textContent=p.peak_today??"–";
+
+    // Prediction history chart
+    if(p.history&&p.history.length){
+      predChart.data.labels=p.history.map(h=>h.t);
+      predChart.data.datasets[0].data=p.history.map(h=>h.v);
+      predChart.update("none");
+    }
+
+    // Risk
+    const rk=d.risk||{};
+    const rb=document.getElementById("risk-badge");
+    rb.textContent=(rk.risk_level||"low").toUpperCase();
+    rb.className="risk-badge risk-"+(rk.risk_level||"low");
+    document.getElementById("risk-score").textContent=(rk.score||0)+" / 100";
+    const fl=document.getElementById("risk-factors");fl.innerHTML="";
+    (rk.factors||[]).forEach(f=>{const div=document.createElement("div");div.className="factor-item";div.textContent=f;fl.appendChild(div);});
+
+    // Crowd stats
+    const cs=d.crowd_stats||{};
+    document.getElementById("cs-speed").textContent=cs.avg_speed!=null?cs.avg_speed.toFixed(1)+"px/f":"–";
+    document.getElementById("cs-density").textContent=cs.density!=null?cs.density.toFixed(4):"–";
+    document.getElementById("cs-spread").textContent=cs.spread!=null?cs.spread.toFixed(0)+"px":"–";
+    document.getElementById("cs-direction").textContent=cs.dominant_direction||"–";
+
+    // Threats
+    const tl=document.getElementById("threat-list");
+    const threats=d.threats||[];
+    if(threats.length){
+      tl.innerHTML="";
+      threats.forEach(t=>{
+        const div=document.createElement("div");div.className="threat-item";
+        div.innerHTML=`<div class="threat-sev ${t.severity||'medium'}"></div>
+          <span style="flex:1">${t.details_en||t.threat_type}</span>
+          <span style="font-size:.6rem;color:var(--muted)">${t.severity||""}</span>`;
+        tl.appendChild(div);
+      });
+    } else {
+      tl.innerHTML='<div style="font-size:.75rem;color:var(--muted);padding:8px 0;text-align:center;">No active threats</div>';
+    }
+
+    // Zones
+    const zl=document.getElementById("zone-list");
+    const zones=d.zones||[];
+    zl.innerHTML="";
+    zones.forEach(z=>{
+      const div=document.createElement("div");div.className="zone-item";
+      div.innerHTML=`<span>${z.name}</span><span class="zone-tag">${z.type}</span><span style="color:var(--muted);font-size:.65rem">(${z.x1},${z.y1})→(${z.x2},${z.y2})</span>`;
+      zl.appendChild(div);
+    });
+
+  }catch(e){console.warn("analytics:",e);}
+}
+
+/* ── Zone controls ──────────────────────────────────────────── */
+document.getElementById("btn-add-zone").addEventListener("click",async()=>{
+  const name=document.getElementById("zone-name").value.trim()||"Zone";
+  const x1=parseInt(document.getElementById("zone-x1").value)||0;
+  const y1=parseInt(document.getElementById("zone-y1").value)||0;
+  const x2=parseInt(document.getElementById("zone-x2").value)||200;
+  const y2=parseInt(document.getElementById("zone-y2").value)||200;
+  await fetch("/zones",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({name,x1,y1,x2,y2,type:"restricted"})});
+  pollAnalytics();
+});
+document.getElementById("btn-clear-zones").addEventListener("click",async()=>{
+  await fetch("/zones/clear",{method:"POST"});pollAnalytics();
+});
+
 /* ── Boot ────────────────────────────────────────────────────── */
 applyModeUI(false);   // start in Normal mode — no game features shown
 applyLang();
@@ -1058,7 +1339,9 @@ poll();
 loadRegisteredUsers();
 setInterval(poll,1200);
 setInterval(refreshChart,6000);
+setInterval(pollAnalytics,2000);
 refreshChart();
+pollAnalytics();
 </script>
 </body>
 </html>

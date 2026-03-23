@@ -1,7 +1,37 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Read(//c/Users/User/AppData/Local/Programs/**)",
+      "Bash(ls /c/Python*/python.exe)",
+      "Bash(where python:*)",
+      "Bash(python3:*)",
+      "Bash(ls /c/Users/User/AppData/Local/Programs/Python/*/python.exe)",
+      "Bash(ls /c/Python3*/python.exe)",
+      "Read(//c/Users/User/**)",
+      "Bash(cmd.exe /c \"where python\" 2>/dev/null)",
+      "Bash(where python3:*)",
+      "Bash(where py:*)",
+      "Bash(ls \"/c/Users/User/AppData/Local/Programs/Python\"/*/Scripts/pip.exe)",
+      "Bash(ls \"/c/Python\"*/python.exe)",
+      "Bash(ls \"/c/Users/User/AppData/Local/Microsoft/WindowsApps\"/python*.exe)",
+      "Read(//c/Program Files/**)",
+      "Read(//c/ProgramData/**)",
+      "Bash(ls \"/c/Users/User/anaconda\"*/python.exe)",
+      "Bash(ls \"/c/Users/User/miniconda\"*/python.exe)",
+      "Bash(ls \"/c/Program Files/Python\"*/python.exe)",
+      "Read(//c/Program Files \\(x86\\)/**)",
+      "Bash(py --version)",
+      "Bash(ls \"/c/Users/User/AppData/Local/Programs/Python/Python312/Scripts/pip\"*)",
+      "Bash(\"/c/Users/User/AppData/Local/Programs/Python/Python312/python.exe\" --version)",
+      "Bash(\"/c/Users/User/AppData/Local/Programs/Python/Python312/Scripts/pip.exe\" install:*)",
+      "Bash(\"C:\\\\Users\\\\User\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312\\\\python.exe\" -m pip install git+https://github.com/ageitgey/face_recognition_models)",
+      "Bash(\"C:\\\\Users\\\\User\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312\\\\python.exe\" -c \"import face_recognition_models; print\\('OK:', face_recognition_models.pose_predictor_model_location\\(\\)\\)\")",
+      "Bash(\"C:\\\\Users\\\\User\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312\\\\python.exe\" -m pip install setuptools)",
+      "Bash(\"C:\\\\Users\\\\User\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312\\\\python.exe\" -c \"from pkg_resources import resource_filename; print\\('OK'\\)\")",
+      "Bash(\"C:\\\\Users\\\\User\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312\\\\python.exe\" -m pip install --force-reinstall setuptools)",
+      "Bash(\"C:\\\\Users\\\\User\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312\\\\python.exe\" -c \"import setuptools; print\\(setuptools.__file__\\)\")",
+      "Bash(\"C:\\\\Users\\\\User\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312\\\\python.exe\" -c \"import face_recognition_models; print\\(face_recognition_models.__file__\\)\")"
     ]
   }
 }
