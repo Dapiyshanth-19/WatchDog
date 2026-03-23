@@ -11,11 +11,12 @@ import numpy as np
 from flask import Flask, Response, jsonify, request, render_template
 from flask_cors import CORS
 
-import database as db
-import pipeline
-import game
-import face_engine
-from config import SERVER_HOST, SERVER_PORT, CAMERA_SOURCE, FACES_DIR
+from core import database as db
+from core import pipeline
+from core.multi_camera import manager as multi_cam
+from engine import game
+from engine import face_engine
+from core.config import SERVER_HOST, SERVER_PORT, CAMERA_SOURCE, FACES_DIR
 
 app = Flask(__name__)
 CORS(app)
@@ -62,16 +63,21 @@ def video_feed():
 def status():
     s = pipeline.get_state()
     return jsonify({
-        "running":   s["running"],
-        "fps":       s["fps"],
-        "count":     s["count"],
-        "obj_count": s["obj_count"],
-        "tracks":    s["tracks"],
-        "alerts":    s["alerts"],
-        "error":     s.get("error"),
-        "mode":      pipeline._cfg.get("detection_mode", "people"),
-        "vision":    pipeline._cfg.get("vision_mode", "normal"),
-        "game":      s.get("game", {}),
+        "running":     s["running"],
+        "fps":         s["fps"],
+        "count":       s["count"],
+        "obj_count":   s["obj_count"],
+        "tracks":      s["tracks"],
+        "alerts":      s["alerts"],
+        "error":       s.get("error"),
+        "mode":        pipeline._cfg.get("detection_mode", "people"),
+        "vision":      pipeline._cfg.get("vision_mode", "normal"),
+        "game":        s.get("game", {}),
+        "anomalies":   s.get("anomalies", []),
+        "threats":     s.get("threats", []),
+        "crowd_stats": s.get("crowd_stats", {}),
+        "prediction":  s.get("prediction", {}),
+        "risk":        s.get("risk", {}),
     })
 
 
@@ -286,6 +292,175 @@ def face_delete():
     face_engine.clear_results()
     return jsonify({"ok": deleted,
                     "message": f"Deleted '{name}'." if deleted else "User not found."})
+
+
+# ── AI Analytics endpoints ─────────────────────────────────────────────────────
+@app.route("/analytics/crowd")
+def analytics_crowd():
+    """Real-time crowd statistics from anomaly detector."""
+    s = pipeline.get_state()
+    return jsonify({
+        "crowd_stats": s.get("crowd_stats", {}),
+        "anomalies":   s.get("anomalies", []),
+    })
+
+
+@app.route("/analytics/prediction")
+def analytics_prediction():
+    """Crowd trend prediction and forecasting."""
+    s = pipeline.get_state()
+    pred = s.get("prediction", {})
+    risk = s.get("risk", {})
+    hourly = []
+    if pipeline.crowd_predictor:
+        hourly = pipeline.crowd_predictor.get_hourly_forecast()
+    return jsonify({
+        "prediction":      pred,
+        "risk":            risk,
+        "hourly_forecast": hourly,
+    })
+
+
+@app.route("/analytics/threats")
+def analytics_threats():
+    """Current threat events and zone configuration."""
+    s = pipeline.get_state()
+    zones = []
+    if pipeline.threat_detector:
+        zones = pipeline.threat_detector.get_zones()
+    return jsonify({
+        "threats": s.get("threats", []),
+        "zones":   zones,
+    })
+
+
+@app.route("/analytics/full")
+def analytics_full():
+    """All analytics in one call — for dashboard polling."""
+    s = pipeline.get_state()
+    hourly = []
+    zones = []
+    if pipeline.crowd_predictor:
+        hourly = pipeline.crowd_predictor.get_hourly_forecast()
+    if pipeline.threat_detector:
+        zones = pipeline.threat_detector.get_zones()
+    return jsonify({
+        "crowd_stats":     s.get("crowd_stats", {}),
+        "anomalies":       s.get("anomalies", []),
+        "threats":         s.get("threats", []),
+        "prediction":      s.get("prediction", {}),
+        "risk":            s.get("risk", {}),
+        "hourly_forecast": hourly,
+        "zones":           zones,
+    })
+
+
+# ── Threat zone management ────────────────────────────────────────────────────
+@app.route("/zones", methods=["GET"])
+def get_zones():
+    if pipeline.threat_detector:
+        return jsonify(pipeline.threat_detector.get_zones())
+    return jsonify([])
+
+
+@app.route("/zones", methods=["POST"])
+def add_zone():
+    """Add a restricted zone. JSON: {name, x1, y1, x2, y2, type?}"""
+    data = request.get_json(force=True) or {}
+    if not pipeline.threat_detector:
+        return jsonify({"ok": False, "message": "Pipeline not running."}), 400
+    name = data.get("name", "Zone")
+    pipeline.threat_detector.add_zone(
+        name=name,
+        x1=int(data.get("x1", 0)),
+        y1=int(data.get("y1", 0)),
+        x2=int(data.get("x2", 200)),
+        y2=int(data.get("y2", 200)),
+        zone_type=data.get("type", "restricted"),
+    )
+    return jsonify({"ok": True, "zones": pipeline.threat_detector.get_zones()})
+
+
+@app.route("/zones/clear", methods=["POST"])
+def clear_zones():
+    if pipeline.threat_detector:
+        pipeline.threat_detector.clear_zones()
+    return jsonify({"ok": True})
+
+
+# ── Multi-camera endpoints ────────────────────────────────────────────────────
+@app.route("/multicam/add", methods=["POST"])
+def multicam_add():
+    """Add a camera. JSON: {name, source}"""
+    data = request.get_json(force=True) or {}
+    name = data.get("name", "Camera")
+    source = data.get("source", "0")
+    cam_id = multi_cam.add_camera(name, source)
+    return jsonify({"ok": True, "cam_id": cam_id})
+
+
+@app.route("/multicam/remove", methods=["POST"])
+def multicam_remove():
+    data = request.get_json(force=True) or {}
+    ok = multi_cam.remove_camera(int(data.get("cam_id", 0)))
+    return jsonify({"ok": ok})
+
+
+@app.route("/multicam/start", methods=["POST"])
+def multicam_start():
+    data = request.get_json(force=True) or {}
+    cam_id = data.get("cam_id")
+    if cam_id is not None:
+        ok = multi_cam.start_camera(int(cam_id))
+    else:
+        multi_cam.start_all()
+        ok = True
+    return jsonify({"ok": ok})
+
+
+@app.route("/multicam/stop", methods=["POST"])
+def multicam_stop():
+    data = request.get_json(force=True) or {}
+    cam_id = data.get("cam_id")
+    if cam_id is not None:
+        ok = multi_cam.stop_camera(int(cam_id))
+    else:
+        multi_cam.stop_all()
+        ok = True
+    return jsonify({"ok": ok})
+
+
+@app.route("/multicam/status")
+def multicam_status():
+    return jsonify(multi_cam.get_aggregate_stats())
+
+
+@app.route("/multicam/feed/<int:cam_id>")
+def multicam_feed(cam_id):
+    """MJPEG stream for a specific camera."""
+    def gen():
+        while True:
+            jpg = multi_cam.get_camera_frame(cam_id)
+            if jpg:
+                yield b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + jpg + b"\r\n"
+            time.sleep(0.033)
+    return Response(gen(), mimetype="multipart/x-mixed-replace; boundary=frame")
+
+
+@app.route("/multicam/set_model", methods=["POST"])
+def multicam_set_model():
+    """Set shared YOLO model for multi-camera. JSON: {model_path}"""
+    data = request.get_json(force=True) or {}
+    path = data.get("model_path", "").strip()
+    if not path:
+        return jsonify({"ok": False, "message": "Missing model_path."})
+    from ultralytics import YOLO
+    try:
+        model = YOLO(path)
+        multi_cam.set_model(model)
+        return jsonify({"ok": True, "message": f"Model set: {path}"})
+    except Exception as e:
+        return jsonify({"ok": False, "message": str(e)})
 
 
 # ── Dashboard ──────────────────────────────────────────────────────────────────

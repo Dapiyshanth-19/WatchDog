@@ -10,15 +10,16 @@ build/
 venv/
 env/
 
-# Database (runtime data — not source)
-watchdog.db
+# Runtime data directory (database, face images)
+data/
 
 # YOLO model weights (large binary files — download separately)
+models/*.pt
 *.pt
 *.onnx
 *.weights
 
-# Uploaded face images (user data)
+# Uploaded face images (user data, legacy path)
 faces/
 
 # Audio files

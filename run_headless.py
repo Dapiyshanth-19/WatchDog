@@ -16,11 +16,11 @@ import numpy as np
 import time
 
 from ultralytics import YOLO
-from sort import Sort
-from behavior import BehaviorAnalyzer
-import database as db
-from config import (
-    CAMERA_SOURCE, MODEL_NAME, CONFIDENCE_THRESHOLD, PERSON_CLASS_ID,
+from core.sort import Sort
+from engine.behavior import BehaviorAnalyzer
+from core import database as db
+from core.config import (
+    CAMERA_SOURCE, MODEL_PATH, CONFIDENCE_THRESHOLD, PERSON_CLASS_ID,
     FRAME_WIDTH, FRAME_HEIGHT, SORT_MAX_AGE, SORT_MIN_HITS, SORT_IOU_THRESH,
     CROWD_THRESHOLD,
 )
@@ -32,8 +32,8 @@ raw = sys.argv[1] if len(sys.argv) > 1 else str(CAMERA_SOURCE)
 source = int(raw) if raw.isdigit() else raw
 
 # ── Init ──────────────────────────────────────────────────────────────────────
-print(f"Loading model: {MODEL_NAME}")
-model   = YOLO(MODEL_NAME)
+print(f"Loading model: {MODEL_PATH}")
+model   = YOLO(MODEL_PATH)
 tracker = Sort(max_age=SORT_MAX_AGE, min_hits=SORT_MIN_HITS, iou_threshold=SORT_IOU_THRESH)
 analyzer = BehaviorAnalyzer()
 
@@ -76,8 +76,8 @@ while True:
     now    = time.time()
     events = analyzer.update(tracks, now)
     for ev in events:
-        print(f"  [ALERT] {ev['type']}: {ev['details']}")
-        db.log_alert(1, ev["type"], {"details": ev["details"], "track_id": ev["track_id"]})
+        print(f"  [ALERT] {ev['type']}: {ev['details_en']}")
+        db.log_alert(1, ev["type"], {"details": ev["details_en"], "track_id": ev["track_id"]})
 
     if now - count_log_t >= 5.0:
         db.log_count(1, len(tracks))
