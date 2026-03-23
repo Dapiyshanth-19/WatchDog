@@ -541,6 +541,17 @@ body.nm #finish-canvas{display:none;}
       </div>
       <div id="activity-list"></div>
     </div>
+    
+    <!-- Object feed -->
+    <div class="card feed-wrap" style="margin-top:12px;">
+      <div class="feed-header">
+        <span class="feed-header-title" data-i18n="object_feed_title">Object Feed</span>
+        <span class="player-count-sub" id="object-count-sub"></span>
+      </div>
+      <div id="object-list" style="overflow-y:auto;max-height:200px;scrollbar-width:thin;scrollbar-color:var(--border) transparent;">
+        <div class="object-empty" style="padding:16px 14px;text-align:center;color:var(--muted);font-size:.78rem;">No objects detected</div>
+      </div>
+    </div>
 
     <!-- Player list -->
     <div class="card player-wrap">
@@ -695,7 +706,7 @@ const I18N = {
     players_title:"Players",players_empty:"No active players",
     winners_title:"🏆 Winners",winners_empty:"No winners yet",
     status_alive:"alive",status_eliminated:"ELIMINATED",status_winner:"WINNER",
-    face_title:"👤 Register Face",
+    face_title:"👤 Register Face",object_feed_title:"Object Feed",
   },
   ta:{
     offline_msg:"கேமரா இல்லை — Start அழுத்துங்கள்",
@@ -709,7 +720,7 @@ const I18N = {
     players_title:"வீரர்கள்",players_empty:"வீரர்கள் இல்லை",
     winners_title:"🏆 வெற்றியாளர்கள்",winners_empty:"வெற்றியாளர்கள் இல்லை",
     status_alive:"உயிருடன்",status_eliminated:"நீக்கப்பட்டார்",status_winner:"வெற்றி",
-    face_title:"👤 முகம் பதிவு",
+    face_title:"👤 முகம் பதிவு",object_feed_title:"பொருள்கள் பதிவு",
   },
 };
 let LANG="en", isLive=false;
@@ -1036,6 +1047,43 @@ function renderTrackedPeople(tracks){
   }
 }
 
+/* ── Object list ─────────────────────────────────────────────── */
+let prevObjectCounts = {};
+function renderObjects(objects){
+  const list=document.getElementById("object-list");
+  const sub=document.getElementById("object-count-sub");
+  if(!objects||objects.length===0){
+    sub.textContent="";prevObjectCounts={};return;
+  }
+  sub.textContent=objects.length+" detected";
+  let cur={};Object.keys(prevObjectCounts).forEach(k=>cur[k]=0); // Reset for items that disappeared
+  for(const obj of objects){const cid=obj.class_id;cur[cid]=(cur[cid]||0)+1;}
+  for(const cid in cur){
+    const c=cur[cid],p=prevObjectCounts[cid]||0;
+    if(c>p){
+      const o=objects.find(o=>o.class_id==cid);
+      const name=LANG==="ta"?o.activity_ta:o.activity_en;
+      appendObjectLog(name,cid,c); // Pass total count c
+    }
+  }
+  prevObjectCounts=cur;
+}
+function appendObjectLog(name,cid,count){
+  const list=document.getElementById("object-list");
+  const empty=list.querySelector(".object-empty");if(empty)list.removeChild(empty);
+  const ts=new Date().toLocaleTimeString();
+  let icon="📦";
+  if(cid==24||cid==26)icon="🎒";else if(cid==67)icon="📱";else if(cid==63)icon="💻";else if(cid==39)icon="🍶";
+  const desc=LANG==="ta"?`${count} ${name} கண்டறியப்பட்டது`:`${count} ${name} detected`;
+  const div=document.createElement("div");div.className="feed-item";
+  div.innerHTML=`<div class="row1">
+      <span class="badge" style="background:rgba(234,179,8,.1);color:var(--yellow);border:1px solid rgba(234,179,8,.2)">${icon} ${count} ${name}</span>
+      <span class="ts">${ts}</span>
+    </div><div class="en">${desc}</div>`;
+  list.prepend(div);
+  while(list.children.length>50)list.removeChild(list.lastChild);
+}
+
 /* ── Winners list ────────────────────────────────────────────── */
 const RANK_EMOJIS=["🥇","🥈","🥉","4️⃣","5️⃣","6️⃣","7️⃣","8️⃣","9️⃣","🔟"];
 function renderWinners(winners){
@@ -1059,17 +1107,31 @@ function renderWinners(winners){
 }
 
 /* ── Status poll ─────────────────────────────────────────────── */
+let prevPersonCount = -1;
 const CROWD_THRESHOLD=8;
 async function poll(){
   try{
     const[sr,ar]=await Promise.all([fetch("/status"),fetch("/alerts?limit=60")]);
     const s=await sr.json(),alerts=await ar.json();
     const ce=document.getElementById("stat-count");
-    ce.textContent=s.count??"–";
-    ce.style.color=s.count>=CROWD_THRESHOLD?"var(--red)":"var(--accent)";
+    const currentCount = s.count ?? 0;
+    ce.textContent=currentCount;
+    ce.style.color=currentCount>=CROWD_THRESHOLD?"var(--red)":"var(--accent)";
+    
+    if(prevPersonCount !== -1 && currentCount > prevPersonCount){
+      prependAlert({
+        id: "sys_person_" + Date.now(),
+        type: "Count",
+        details_en: `${currentCount} Person(s) detected`,
+        details_ta: `${currentCount} நபர்கள் கண்டறியப்பட்டனர்`,
+        timestamp: new Date().toISOString()
+      });
+    }
+    prevPersonCount = currentCount;
+    
     document.getElementById("stat-objects").textContent=s.obj_count??"–";
     document.getElementById("stat-fps").textContent=s.fps!=null?s.fps.toFixed(1):"–";
-    updateCrowdPulse(s.count||0,CROWD_THRESHOLD);
+    updateCrowdPulse(currentCount,CROWD_THRESHOLD);
     const eb=document.getElementById("error-banner");
     if(s.error){eb.textContent="⚠ "+s.error;eb.style.display="block";}else eb.style.display="none";
     isLive=s.running;
@@ -1098,6 +1160,9 @@ async function poll(){
     // In Normal mode, show tracked people with activity from s.tracks
     if(!isGameMode && s.tracks){
       renderTrackedPeople(s.tracks);
+    }
+    if(s.objects){
+      renderObjects(s.objects);
     }
     drawFinishLineCanvas();
   }catch(e){console.warn("poll:",e);}

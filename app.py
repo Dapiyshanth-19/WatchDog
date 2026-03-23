@@ -68,6 +68,7 @@ def status():
         "count":       s["count"],
         "obj_count":   s["obj_count"],
         "tracks":      s["tracks"],
+        "objects":     s.get("objects", []),
         "alerts":      s["alerts"],
         "error":       s.get("error"),
         "mode":        pipeline._cfg.get("detection_mode", "people"),

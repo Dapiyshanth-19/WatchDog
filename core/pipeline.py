@@ -538,6 +538,7 @@ def _run(initial_source):
             state["count"]       = len(tracks)
             state["obj_count"]   = len(obj_data)
             state["tracks"]      = track_data
+            state["objects"]     = obj_data
             state["alerts"]      = all_events
             state["frame_jpg"]   = jpg.tobytes()
             state["game"]        = gstatus

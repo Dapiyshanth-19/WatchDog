@@ -920,6 +920,20 @@ Manages multiple video feeds with independent pipelines:
 API: add/remove/start/stop cameras, get individual or aggregate stats.
 ```
 
+### 11.7 Object Detection Feed
+
+```
+core/pipeline.py — obj_data
+templates/index.html — renderObjects()
+
+Displays a real-time list of non-person objects detected by YOLO:
+  • Exposes detection array `obj_data` from pipeline into `state["objects"]`
+  • Exposes `objects` on dashboard `/status` polling endpoint
+  • JavaScript renders detected objects with **count-based grouping** (e.g., "2 Phone detected") and dedicated icons
+  • Activity Feed includes client-side alerts for **Person count increases**
+  • Updates dynamically with deduplication to prevent floods
+```
+
 ---
 
 ## 12. Frontend Dashboard
@@ -949,12 +963,12 @@ API: add/remove/start/stop cameras, get individual or aggregate stats.
 │  [Alerts][Threats][Risk]            │  [Thermal][X-Ray]     │
 ├─────────────────────────────────────┤                       │
 │                                     │  ACTIVITY FEED        │
-│  VISION / DETECTION / GAME PANELS   │  PLAYER LIST          │
-│                                     │  WINNERS PANEL        │
-│  HISTORICAL CHART (Chart.js)        │                       │
-│  ┌───────────────────────────────┐  │  THREAT ALERTS        │
-│  │  People count over time 📈    │  │  ┌─────────────────┐  │
-│  └───────────────────────────────┘  │  │ 🆘 Fall Detected │  │
+│  VISION / DETECTION / GAME PANELS   │  OBJECT FEED            │
+│  HISTORICAL CHART (Chart.js)        │  PLAYER LIST          │
+│  ┌───────────────────────────────┐  │                       │
+│  │  People count over time 📈    │  │  THREAT ALERTS        │
+│  └───────────────────────────────┘  │  ┌─────────────────┐  │
+│                                     │  │ 🆘 Fall Detected │  │
 │                                     │  │ 🔥 Fire Detected │  │
 │  AI ANALYTICS GRID (2x2):          │  └─────────────────┘  │
 │  ┌──────────────┬───────────────┐  │                       │
