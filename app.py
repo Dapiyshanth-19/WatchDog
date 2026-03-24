@@ -113,6 +113,20 @@ def start():
     ok, msg = pipeline.start(source)
     return jsonify({"started": ok, "message": msg})
 
+@app.route("/test_sync")
+def test_sync():
+    print("DEBUG: test_sync called", flush=True)
+    from ultralytics import YOLO
+    model_path = pipeline._cfg.get("model_path", "models/yolo26n.pt")
+    print(f"DEBUG: pre-loading model {model_path}", flush=True)
+    model = YOLO(model_path)
+    print("DEBUG: model loaded, starting pipeline._run sync", flush=True)
+    try:
+        pipeline._run(0, model)
+    except Exception as e:
+        print(f"DEBUG ERROR inside test_sync: {e}", flush=True)
+    return "Done"
+
 
 @app.route("/stop", methods=["POST"])
 def stop():
