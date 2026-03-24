@@ -59,11 +59,11 @@ _cfg = {
     "detection_mode": "people",
     "source":         CAMERA_SOURCE,
     "vision_mode":    "normal",
-    "trails_on":      True,
-    "network_on":     True,
-    "predict_on":     True,
+    "trails_on":      False,
+    "network_on":     False,
+    "predict_on":     False,
     "heatmap_on":     False,
-    "voice_on":       False,
+    "voice_on":       True,
     "voice_lang":     "en",
     "model_path":     MODEL_PATH,
 }
@@ -86,6 +86,62 @@ _OBJECT_COLOR = (255, 200, 0)
 _ELIM_COLOR   = (0, 0, 230)
 _WIN_COLOR    = (0, 215, 255)    # gold for winners
 _TARGET_COLOR = (50, 180, 255)   # highlighted target
+
+
+def _build_live_narration(track_data: list[dict], lang: str = "en") -> str:
+    """Build scene narration text for continuous voice updates."""
+    people = [t for t in track_data if t.get("class_id") == 0]
+
+    if lang == "ta":
+        if not people:
+            return "கேமராவில் இப்போது யாரும் இல்லை."
+
+        standing = []
+        sitting = []
+        others = []
+        for p in people:
+            act = (p.get("activity_ta") or "").strip()
+            tid = p.get("id")
+            if "அமர" in act:
+                sitting.append(tid)
+            elif "நிற்க" in act:
+                standing.append(tid)
+            else:
+                others.append((tid, act or "நிற்கிறார்"))
+
+        parts = [f"கேமராவில் {len(people)} நபர்கள் உள்ளனர்."]
+        if standing:
+            parts.append("நிற்கும் நபர்கள்: " + ", ".join(f"{i}" for i in standing) + ".")
+        if sitting:
+            parts.append("அமர்ந்திருக்கும் நபர்கள்: " + ", ".join(f"{i}" for i in sitting) + ".")
+        for tid, act in others[:4]:
+            parts.append(f"நபர் {tid} {act}.")
+        return " ".join(parts)
+
+    if not people:
+        return "No person is visible in the camera."
+
+    standing = []
+    sitting = []
+    others = []
+    for p in people:
+        act = (p.get("activity_en") or "").strip().lower()
+        tid = p.get("id")
+        if "sit" in act:
+            sitting.append(tid)
+        elif "stand" in act:
+            standing.append(tid)
+        else:
+            others.append((tid, act or "standing"))
+
+    parts = [f"{len(people)} people are visible in the camera."]
+    if standing:
+        parts.append("Standing persons: " + ", ".join(str(i) for i in standing) + ".")
+    if sitting:
+        parts.append("Sitting persons: " + ", ".join(str(i) for i in sitting) + ".")
+    for tid, act in others[:4]:
+        parts.append(f"Person {tid} is {act}.")
+    return " ".join(parts)
 
 
 # ── Box / overlay drawing ──────────────────────────────────────────────────────
@@ -132,18 +188,14 @@ def _draw_boxes(frame, track_data, player_snapshot: dict | None = None,
         cv2.rectangle(frame, (x1, y1), (x2, y2), color, thickness, cv2.LINE_AA)
 
         # ── Label ─────────────────────────────────────────────────────────
-        # Show: recognised name OR "Player N"; never "Unknown"
-        if is_person and player_name and not player_name.startswith("Unknown"):
-            id_label = player_name
+        # Keep labels clean: no numeric IDs in UI.
+        if is_person:
+            if player_name and not player_name.startswith("Unknown"):
+                label = player_name
+            else:
+                label = "Person"
         else:
-            id_label = f"ID{tid}"
-
-        if is_target and id_label:
-            id_label = f"\u2605 {id_label}"    # star prefix for target
-
-        label = f"{id_label}"
-        if not is_person:
-            label = f"{id_label} {class_name(cls_id, 'en')}"
+            label = class_name(cls_id, "en")
 
         lsz = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.46, 1)[0]
         cv2.rectangle(frame, (x1, y1 - lsz[1] - 6), (x1 + lsz[0] + 4, y1), color, -1)
@@ -347,6 +399,7 @@ def _run(initial_source):
     crowd_predictor  = CrowdPredictor()
 
     voice.start()
+    voice.set_enabled(_cfg.get("voice_on", True))
     face_engine.clear_results()
 
     cap_source, cap = _open_capture(initial_source)
@@ -356,7 +409,9 @@ def _run(initial_source):
     fps_avg      = 0.0
     t_prev       = time.time()
     t_count_log  = time.time()
+    t_narration  = 0.0
     COUNT_LOG_INT = 5.0
+    NARRATION_INTERVAL = 4.0
 
     while not _stop_event.is_set():
 
@@ -509,6 +564,14 @@ def _run(initial_source):
                 "status": "alive", "is_target": False,
             })
 
+        # ── Continuous scene narration (until user turns voice off) ─────────
+        if _cfg.get("voice_on", False):
+            if (now - t_narration) >= NARRATION_INTERVAL:
+                voice.speak_live(_build_live_narration(track_data, v_lang), v_lang)
+                t_narration = now
+        else:
+            t_narration = 0.0
+
         # ── FPS ───────────────────────────────────────────────────────────
         t_now   = time.time()
         fps_avg = 0.9 * fps_avg + 0.1 / max(t_now - t_prev, 1e-6)
@@ -588,6 +651,12 @@ def set_detection_mode(mode: str):
 
 def set_vision(updates: dict):
     for k, v in updates.items():
+        if k in {"network_on", "trails_on", "predict_on"}:
+            # Keep visual link/trail/prediction overlays disabled.
+            _cfg["network_on"] = False
+            _cfg["trails_on"] = False
+            _cfg["predict_on"] = False
+            continue
         if k in _cfg:
             _cfg[k] = v
     if "voice_on" in updates:
