@@ -556,6 +556,8 @@ Thread Communication:
 | `GET`  | `/video_feed`     | MJPEG live video stream            | —                            |
 | `GET`  | `/status`         | Pipeline status + stats            | —                            |
 | `GET`  | `/alerts`         | Recent alerts                      | `?limit=N` (default 50)     |
+| `POST` | `/alert`          | Log a manual alert                 | `{ "type": "Manual", "details": "..." }` |
+| `GET`  | `/cameras`        | List all configured cameras        | —                            |
 | `POST` | `/start`          | Start pipeline                     | `{ "source": "0" }`         |
 | `POST` | `/stop`           | Stop pipeline                      | —                            |
 | `POST` | `/config`         | Set detection mode                 | `{ "mode": "people" }`      |
@@ -567,7 +569,7 @@ Thread Communication:
 | Method | Endpoint          | Description                        | Body / Params                |
 |--------|-------------------|------------------------------------|------------------------------|
 | `POST` | `/face/register`  | Register a new face                | `{ "name": "...", image }` |
-| `GET`  | `/face/list`      | List registered faces              | —                            |
+| `GET`  | `/face/users`     | List registered users              | —                            |
 | `DELETE`| `/face/delete`   | Remove a registered face           | `{ "name": "..." }`         |
 
 ### Squid Game Endpoints
@@ -592,6 +594,7 @@ Thread Communication:
 | `GET`  | `/analytics/prediction`| Trend forecast + risk + hourly    | —                            |
 | `GET`  | `/analytics/threats`  | Active threats + zone list         | —                            |
 | `GET`  | `/analytics/full`     | All analytics in one call          | —                            |
+| `GET`  | `/counts/history`     | Historical crowd counts (60 items) | —                            |
 
 ### Threat Zone Endpoints
 
@@ -1070,6 +1073,10 @@ setup.bat
 │ face_recognition │ pip install face-recognition dlib           │
 │ None (disabled)  │ Feature silently skipped                    │
 └──────────────────┴─────────────────────────────────────────────┘
+
+> [!NOTE]
+> **Troubleshooting (Windows)**: If `deepface` fails with DLL load errors, consider downgrading TensorFlow to `2.15.0` (which is more stable on some Windows builds) and ensure compatible versions of `numpy` (e.g., `< 2.0`) and `protobuf` (e.g., `3.20.3`) are used. A forwarder script for `tensorflow.keras` might be needed if they install separately.
+
 ```
 
 ---
