@@ -43,8 +43,8 @@ from core.config import FREEZE_MOVEMENT_THRESHOLD
 # ══════════════════════════════════════════════════════════════════════════════
 # Re-spawn protection constants
 # ══════════════════════════════════════════════════════════════════════════════
-_RESPAWN_GRACE = 6.0    # seconds to remember a recently-lost eliminated track
-_RESPAWN_DIST  = 90     # pixel radius for spatial re-identification
+_RESPAWN_GRACE = 8.0    # seconds to remember a recently-lost track
+_RESPAWN_DIST  = 150    # pixel radius for spatial re-identification
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -136,7 +136,7 @@ def _expire_old_gone():
     Eliminated and winner records are NEVER expired during a game — they must
     stay in _recently_gone for the entire game so that a player who was
     eliminated and leaves the frame cannot return as a fresh 'alive' Player N.
-    Only 'alive' temporary entries (e.g. brief tracking gaps) are pruned.
+    Alive player records expire after _RESPAWN_GRACE seconds.
     """
     now = time.time()
     for k in [k for k, v in _recently_gone.items()
@@ -147,7 +147,7 @@ def _expire_old_gone():
 
 def _try_restore_by_position(cx: float, cy: float) -> dict | None:
     """
-    Look for a recently-gone eliminated/winner player near (cx, cy).
+    Look for a recently-gone player (any status) near (cx, cy).
     Returns the matching record and removes it, or None.
     Must be called under _lock.
     """
@@ -546,8 +546,10 @@ def update(tracks: np.ndarray, frame_w: int = 640, frame_h: int = 480) -> list[d
         for gone_tid in list(players.keys()):
             if gone_tid not in active_ids:
                 p = players[gone_tid]
-                # In game mode: save eliminated/winner tracks for re-spawn
-                if game_mode_enabled and p["status"] in ("eliminated", "winner"):
+                # Save ALL disappeared tracks for re-identification —
+                # not just eliminated/winner.  This prevents alive players
+                # from getting a brand-new Player N when detection flickers.
+                if game_mode_enabled:
                     _recently_gone[gone_tid] = {
                         "pos":           p["last_position"],
                         "time":          time.time(),
