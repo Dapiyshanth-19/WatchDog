@@ -20,14 +20,14 @@ CAMERA_SOURCE = 0
 # "yolo11n.pt"  – fast nano model (recommended for CPU / demo)
 # "yolo11s.pt"  – small, slightly more accurate
 # "yolo26n.pt"  – use when YOLOv26 weights become available
-MODEL_NAME = "yolo26n.pt"
+MODEL_NAME = "yolo11s.pt"
 
 # MODEL_PATH can be changed at runtime via POST /model {"path": "yolo11n.pt"}
 # Defaults to MODEL_NAME; a pipeline restart is required after switching.
 MODEL_PATH = os.path.join(BASE_DIR, "models", MODEL_NAME)
 
 # Only report detections above this confidence
-CONFIDENCE_THRESHOLD = 0.45
+CONFIDENCE_THRESHOLD = 0.35
 
 # COCO class id for "person" is 0 — keep this unless you change models
 PERSON_CLASS_ID = 0
@@ -66,7 +66,7 @@ FREEZE_MOVEMENT_THRESHOLD = 12          # pixels (total displacement from freeze
 #   pip install face-recognition dlib      (alternative, needs C++ tools)
 
 # Run face recognition every N pipeline frames (trade-off: speed vs latency)
-FACE_RECOGNITION_INTERVAL = 7           # frames between recognition passes
+FACE_RECOGNITION_INTERVAL = 4           # frames between recognition passes (was 7)
 
 # Minimum match score to accept a face as recognised (0.0 – 1.0)
 # Lower = more permissive (more false positives)
@@ -84,6 +84,6 @@ SERVER_HOST = "0.0.0.0"
 SERVER_PORT = 5000
 
 # ── SORT tracker ──────────────────────────────────────────────────────────────
-SORT_MAX_AGE   = 10   # frames to keep a lost track alive
-SORT_MIN_HITS  = 2    # frames a detection must be seen before reporting
-SORT_IOU_THRESH = 0.25
+SORT_MAX_AGE   = 50   # frames to keep a lost track alive (was 10 — too short)
+SORT_MIN_HITS  = 3    # frames a detection must be seen before reporting
+SORT_IOU_THRESH = 0.20
