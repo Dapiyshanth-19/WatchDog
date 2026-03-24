@@ -112,19 +112,35 @@ class _KalmanBoxTracker:
         return _convert_x_to_bbox(self.kf.x)
 
 
+def _centroid_distance_matrix(dets: np.ndarray, trks: np.ndarray) -> np.ndarray:
+    """Compute centroid distance between detections and tracks."""
+    det_cx = (dets[:, 0] + dets[:, 2]) / 2.0
+    det_cy = (dets[:, 1] + dets[:, 3]) / 2.0
+    trk_cx = (trks[:, 0] + trks[:, 2]) / 2.0
+    trk_cy = (trks[:, 1] + trks[:, 3]) / 2.0
+    mat = np.zeros((len(dets), len(trks)), dtype=np.float32)
+    for d in range(len(dets)):
+        for t in range(len(trks)):
+            mat[d, t] = np.sqrt((det_cx[d] - trk_cx[t])**2 + (det_cy[d] - trk_cy[t])**2)
+    return mat
+
+
 class Sort:
     """
-    SORT tracker.
+    SORT tracker with centroid-distance fallback for re-identification.
 
     Usage::
 
-        tracker = Sort(max_age=10, min_hits=2, iou_threshold=0.25)
+        tracker = Sort(max_age=50, min_hits=3, iou_threshold=0.20)
         # Each frame:
         tracks = tracker.update(dets)   # dets: np.ndarray shape (N,5) [x1,y1,x2,y2,score]
         # tracks: np.ndarray shape (M,5) [x1,y1,x2,y2,track_id]
     """
 
-    def __init__(self, max_age=10, min_hits=2, iou_threshold=0.25):
+    # Max centroid distance (pixels) to allow matching when IoU fails
+    MAX_CENTROID_DIST = 150
+
+    def __init__(self, max_age=50, min_hits=3, iou_threshold=0.20):
         self.max_age = max_age
         self.min_hits = min_hits
         self.iou_threshold = iou_threshold
@@ -198,5 +214,27 @@ class Sort:
                 unmatched_trks.append(t)
             else:
                 matched.append((d, t))
+
+        # ── Second pass: centroid-distance fallback for unmatched pairs ──
+        if unmatched_dets and unmatched_trks:
+            um_dets_arr = dets[unmatched_dets]
+            um_trks_arr = trks[unmatched_trks]
+            dist_mat = _centroid_distance_matrix(um_dets_arr, um_trks_arr)
+            dist_indices = _linear_assignment(dist_mat)
+            still_unmatched_dets = []
+            still_unmatched_trks = set(range(len(unmatched_trks)))
+            for ud, ut in dist_indices:
+                if dist_mat[ud, ut] < self.MAX_CENTROID_DIST:
+                    matched.append((unmatched_dets[ud], unmatched_trks[ut]))
+                    still_unmatched_trks.discard(ut)
+                else:
+                    still_unmatched_dets.append(unmatched_dets[ud])
+            # Add back any detections not in dist_indices
+            assigned_ud = set(dist_indices[:, 0]) if len(dist_indices) > 0 else set()
+            for i, d in enumerate(unmatched_dets):
+                if i not in assigned_ud:
+                    still_unmatched_dets.append(d)
+            unmatched_dets = still_unmatched_dets
+            unmatched_trks = [unmatched_trks[t] for t in still_unmatched_trks]
 
         return matched, unmatched_dets, unmatched_trks
