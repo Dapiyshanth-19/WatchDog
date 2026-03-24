@@ -115,18 +115,35 @@ def get_cameras() -> list[dict]:
 # ── Face recognition helpers ───────────────────────────────────────────────────
 def save_user(name: str, embedding: list, image_path: str = "") -> int:
     """Insert or update a registered face.  Returns the row id."""
-    emb_json = json.dumps(embedding)
     with _conn() as c:
-        # If a user with this name already exists, update their embedding
+        # If a user with this name already exists, append their embedding
         existing = c.execute(
-            "SELECT id FROM users WHERE name = ?", (name,)
+            "SELECT id, embedding FROM users WHERE name = ?", (name,)
         ).fetchone()
+        
         if existing:
+            try:
+                current_emb = json.loads(existing["embedding"])
+                # Handle legacy 1D array
+                if current_emb and isinstance(current_emb[0], float):
+                    all_embs = [current_emb]
+                else:
+                    all_embs = current_emb
+            except (json.JSONDecodeError, IndexError, TypeError):
+                all_embs = []
+            
+            # Append new embedding
+            all_embs.append(embedding)
+            emb_json = json.dumps(all_embs)
+            
             c.execute(
                 "UPDATE users SET embedding=?, image_path=? WHERE id=?",
                 (emb_json, image_path, existing["id"]),
             )
             return existing["id"]
+        
+        # New user: store as list of lists [[embedding]]
+        emb_json = json.dumps([embedding])
         cur = c.execute(
             "INSERT INTO users(name, embedding, image_path) VALUES (?,?,?)",
             (name, emb_json, image_path),

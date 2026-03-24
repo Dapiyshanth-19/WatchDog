@@ -267,27 +267,40 @@ def face_register():
     """
     Register a face.  Multipart form-data:
         name  : person's display name
-        image : image file (jpg / png)
+        image : image file(s) (jpg / png) - supports multiple
     """
     name = request.form.get("name", "").strip()
     if not name:
         return jsonify({"ok": False, "message": "Missing 'name' field."}), 400
 
-    file = request.files.get("image")
-    if file is None:
+    files = request.files.getlist("image")
+    if not files or all(f.filename == "" for f in files):
         return jsonify({"ok": False, "message": "Missing 'image' file."}), 400
 
-    file_bytes = np.frombuffer(file.read(), np.uint8)
-    img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-    if img is None:
-        return jsonify({"ok": False, "message": "Could not decode image."}), 400
+    registered_count = 0
+    
+    for i, file in enumerate(files):
+        if file.filename == "":
+            continue
+        # Read file bytes
+        file_bytes = np.frombuffer(file.read(), np.uint8)
+        img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+        if img is None:
+            continue
 
-    safe_name  = "".join(c if c.isalnum() or c in "-_" else "_" for c in name)
-    image_path = os.path.join(FACES_DIR, f"{safe_name}.jpg")
-    cv2.imwrite(image_path, img)
+        safe_name  = "".join(c if c.isalnum() or c in "-_" else "_" for c in name)
+        # Unique timestamp for each file to avoid overwrite
+        image_path = os.path.join(FACES_DIR, f"{safe_name}_{int(time.time())}_{i}.jpg")
+        cv2.imwrite(image_path, img)
 
-    ok, msg = face_engine.register(name, img, image_path)
-    return jsonify({"ok": ok, "message": msg}), (200 if ok else 422)
+        ok, msg = face_engine.register(name, img, image_path)
+        if ok:
+            registered_count += 1
+
+    if registered_count == 0:
+        return jsonify({"ok": False, "message": "Could not register face from provided images."}), 422
+
+    return jsonify({"ok": True, "message": f"Registered '{name}' successfully with {registered_count} photos."}), 200
 
 
 @app.route("/face/users")

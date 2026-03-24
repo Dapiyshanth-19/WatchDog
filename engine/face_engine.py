@@ -74,7 +74,7 @@ def _extract_embedding(crop: np.ndarray) -> np.ndarray | None:
                 crop,
                 model_name="Facenet",
                 enforce_detection=True,
-                detector_backend="opencv",
+                detector_backend="ssd",
             )
             if res:
                 return np.array(res[0]["embedding"])
@@ -126,9 +126,16 @@ def _do_recognise(frame: np.ndarray, tracks: np.ndarray) -> dict[int, str]:
     known_names:      list[str]        = []
     for u in users:
         try:
-            emb = np.array(json.loads(u["embedding"]))
-            known_embeddings.append(emb)
-            known_names.append(u["name"])
+            emb_data = json.loads(u["embedding"])
+            # Handle legacy 1D array
+            if emb_data and isinstance(emb_data[0], float):
+                embs = [np.array(emb_data)]
+            else:
+                embs = [np.array(e) for e in emb_data]
+            
+            for emb in embs:
+                known_embeddings.append(emb)
+                known_names.append(u["name"])
         except Exception:
             continue
 
