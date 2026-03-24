@@ -14,21 +14,11 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 
-def _thread_excepthook(args):
-    try:
-        with open(r'C:\Users\user\AppData\Local\Temp\thread_crash.log', 'w') as f:
-            f.write(f"CRASH in {args.thread.name}: {args.exc_type} - {args.exc_value}\n")
-    except:
-        pass
-
-import threading
-threading.excepthook = _thread_excepthook
-
 from core.config import (
     CAMERA_SOURCE, MODEL_NAME, MODEL_PATH, CONFIDENCE_THRESHOLD,
     FRAME_WIDTH, FRAME_HEIGHT,
     SORT_MAX_AGE, SORT_MIN_HITS, SORT_IOU_THRESH,
-    CROWD_THRESHOLD,
+    CROWD_THRESHOLD, MAX_DETECTION_AREA_RATIO,
 )
 from core.sort import Sort
 from engine.behavior import BehaviorAnalyzer
@@ -333,9 +323,7 @@ def _open_capture(source):
         src = int(raw)
         cap = cv2.VideoCapture(src)
         if cap.isOpened():
-            print(f"DEBUG: cap.isOpened is True for {src}", flush=True)
             return src, cap
-        print(f"DEBUG: cap.isOpened is False for {src}", flush=True)
         _set_error(f"Webcam {src} not found.")
         return src, None
 
@@ -365,17 +353,13 @@ def _open_capture(source):
 
     cap = cv2.VideoCapture(raw)
     if cap.isOpened():
-        print(f"DEBUG: generic cap.isOpened is True for {raw}", flush=True)
         ret, _ = cap.read()
-        print(f"DEBUG: first frame read ret={ret}", flush=True)
         if ret:
-            print(f"DEBUG: returning raw={raw}, cap", flush=True)
             return raw, cap
         cap.release()
         _set_error(f"Opened {raw} but could not read frames.")
         return raw, None
 
-    print(f"DEBUG: generic cap.isOpened is False for {raw}", flush=True)
     _set_error(f"Cannot open: {raw}")
     return raw, None
 
@@ -393,246 +377,21 @@ def _run(initial_source, model, model_path):
         state["running"] = True
 
     try:
-        model = YOLO(model_path)
-    except Exception as exc:
-        with _lock:
-            state["error"]   = f"Failed to load model '{model_path}': {exc}"
-            state["running"] = False
-        return
-
-    global anomaly_detector, threat_detector, crowd_predictor
-
-    tracker  = Sort(max_age=SORT_MAX_AGE, min_hits=SORT_MIN_HITS,
-                    iou_threshold=SORT_IOU_THRESH)
-    analyzer = BehaviorAnalyzer()
-    vision   = VisionEngine(frame_w=FRAME_WIDTH, frame_h=FRAME_HEIGHT)
-
-    # New AI modules
-    anomaly_detector = AnomalyDetector()
-    threat_detector  = ThreatDetector()
-    crowd_predictor  = CrowdPredictor()
-
-    voice.start()
-    voice.set_enabled(_cfg.get("voice_on", True))
-    face_engine.clear_results()
-
-    cap_source, cap = _open_capture(initial_source)
-    if cap is None:
-        return
-
-    fps_avg      = 0.0
-    t_prev       = time.time()
-    t_count_log  = time.time()
-    t_narration  = 0.0
-    COUNT_LOG_INT = 5.0
-    NARRATION_INTERVAL = 4.0
-
-    while not _stop_event.is_set():
-
-        # ── Dynamic model reload ───────────────────────────────────────────
-        new_path = _cfg.get("model_path", MODEL_PATH)
-        if new_path != model_path:
-            try:
-                model      = YOLO(new_path)
-                model_path = new_path
-            except Exception as exc:
-                _cfg["model_path"] = model_path
-                with _lock:
-                    state["error"] = f"Model reload failed: {exc}"
-
-        ret, frame = cap.read()
-        if not ret:
-            if isinstance(cap_source, int) or str(cap_source).startswith(("http", "rtsp")):
-                with _lock:
-                    state["error"] = "Camera disconnected or stream ended."
-                break
-            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-            continue
-
-        frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
-
-        mode        = _cfg["detection_mode"]
-        classes     = DETECTION_MODES.get(mode, [0])
-        vision_mode = _cfg["vision_mode"]
-        v_lang      = _cfg.get("voice_lang", "en")
-
-        # ── Detection ─────────────────────────────────────────────────────
-        results = model(frame, verbose=False, conf=CONFIDENCE_THRESHOLD,
-                        classes=classes)
-        boxes = results[0].boxes
-
-        person_dets = np.empty((0, 5))
-        obj_dets    = []
-
-        if boxes is not None and len(boxes):
-            xyxy    = boxes.xyxy.cpu().numpy()
-            confs   = boxes.conf.cpu().numpy()
-            cls_ids = boxes.cls.cpu().numpy().astype(int)
-            for i in range(len(xyxy)):
-                x1, y1, x2, y2 = xyxy[i]
-                cf, cid = confs[i], cls_ids[i]
-                if cid == 0:
-                    person_dets = np.vstack([person_dets, [x1, y1, x2, y2, cf]])
-                else:
-                    obj_dets.append((x1, y1, x2, y2, cf, cid))
-
-        # ── Tracking ──────────────────────────────────────────────────────
-        tracks = tracker.update(person_dets)
-
-        # ── Behaviour analysis ────────────────────────────────────────────
-        now    = time.time()
-        events = analyzer.update(tracks, now)
-        alert_ids   = {ev["track_id"] for ev in events}
-        crowd_alarm = any(ev["type"] == "CrowdLimit" for ev in events)
-
-        for ev in events:
-            db.log_alert(1, ev["type"], {
-                "details":    ev["details_en"],
-                "details_ta": ev["details_ta"],
-                "track_id":   ev["track_id"],
-            })
-            speak_text = ev["details_ta"] if v_lang == "ta" else ev["details_en"]
-            voice.speak(speak_text, v_lang)
-
-        if now - t_count_log >= COUNT_LOG_INT:
-            db.log_count(1, len(tracks))
-            crowd_predictor.record(len(tracks), now)
-            t_count_log = now
-
-        # ── Anomaly detection ────────────────────────────────────────────
-        anomaly_events = anomaly_detector.update(tracks, now)
-        crowd_stats = anomaly_detector.get_crowd_stats(tracks)
-        for aev in anomaly_events:
-            db.log_alert(1, aev["type"], {
-                "details":    aev["details_en"],
-                "details_ta": aev["details_ta"],
-                "track_id":   aev["track_id"],
-            })
-            speak_text = aev["details_ta"] if v_lang == "ta" else aev["details_en"]
-            voice.speak(speak_text, v_lang)
-            alert_ids.add(aev["track_id"])
-
-        # ── Threat detection ─────────────────────────────────────────────
-        threat_events = threat_detector.update(frame, tracks, now)
-        for tev in threat_events:
-            db.log_alert(1, tev["type"], {
-                "details":    tev["details_en"],
-                "details_ta": tev["details_ta"],
-                "track_id":   tev["track_id"],
-            })
-            speak_text = tev["details_ta"] if v_lang == "ta" else tev["details_en"]
-            voice.speak(speak_text, v_lang)
-
-        # ── Face recognition (async, non-blocking) ────────────────────────
-        face_engine.submit_frame(frame, tracks)
-        face_names = face_engine.get_results()
-        for tid, name in face_names.items():
-            game.assign_name(tid, name)
-
-        # ── Game logic ────────────────────────────────────────────────────
-        game_events = game.update(tracks, FRAME_WIDTH, FRAME_HEIGHT)
-        for gev in game_events:
-            db.log_alert(1, gev["type"], {
-                "details":    gev["details_en"],
-                "details_ta": gev["details_ta"],
-                "track_id":   gev["track_id"],
-            })
-            speak_text = gev["details_ta"] if v_lang == "ta" else gev["details_en"]
-            voice.speak(speak_text, v_lang)
-
-        all_events = events + game_events + anomaly_events + threat_events
-
-        # Snapshot game state
-        gstatus         = game.get_status()
-        player_snapshot = {int(k): v for k, v in gstatus["players"].items()}
-        target_name     = gstatus.get("target_name", "")
-
-        # ── Build track data ───────────────────────────────────────────────
-        track_data = []
-        for trk in tracks:
-            x1, y1, x2, y2, tid = trk
-            tid   = int(tid)
-            pinfo = player_snapshot.get(tid, {})
-            track_data.append({
-                "x1": float(x1), "y1": float(y1),
-                "x2": float(x2), "y2": float(y2),
-                "id": tid, "class_id": 0,
-                "activity_en": analyzer.get_activity_label(tid, "en"),
-                "activity_ta": analyzer.get_activity_label(tid, "ta"),
-                "is_alert":    tid in alert_ids,
-                "name":        pinfo.get("name", ""),
-                "player_number": pinfo.get("player_number", 0),
-                "status":      pinfo.get("status", "alive"),
-                "is_target":   pinfo.get("is_target", False),
-            })
-
-        obj_data = []
-        for (x1, y1, x2, y2, cf, cid) in obj_dets:
-            obj_data.append({
-                "x1": float(x1), "y1": float(y1),
-                "x2": float(x2), "y2": float(y2),
-                "id": -1, "class_id": int(cid),
-                "activity_en": class_name(cid, "en"),
-                "activity_ta": class_name(cid, "ta"),
-                "is_alert": False, "name": "", "player_number": 0,
-                "status": "alive", "is_target": False,
-            })
-
-        # ── Continuous scene narration (until user turns voice off) ─────────
-        if _cfg.get("voice_on", False):
-            if (now - t_narration) >= NARRATION_INTERVAL:
-                voice.speak_live(_build_live_narration(track_data, v_lang), v_lang)
-                t_narration = now
-        else:
-            t_narration = 0.0
-
-        # ── FPS ───────────────────────────────────────────────────────────
-        t_now   = time.time()
-        fps_avg = 0.9 * fps_avg + 0.1 / max(t_now - t_prev, 1e-6)
-        t_prev  = t_now
-
-        # ── Annotate ──────────────────────────────────────────────────────
-        annotated = frame.copy()
-        _draw_finish_line(annotated, gstatus)
-        threat_detector.draw_zones(annotated)
-        threat_detector.draw_fire_overlay(annotated)
-        _draw_boxes(annotated, track_data + obj_data, player_snapshot, target_name)
-        _draw_game_overlay(annotated, gstatus)
-
-        vision.mode       = vision_mode
-        vision.trails_on  = _cfg.get("trails_on",  True)
-        vision.network_on = _cfg.get("network_on", True)
-        vision.predict_on = _cfg.get("predict_on", True)
-        vision.heatmap_on = _cfg.get("heatmap_on", False)
-        annotated = vision.apply(annotated, tracks, crowd_alarm=crowd_alarm)
-
-        _draw_hud(annotated, len(tracks), len(obj_data), fps_avg, all_events, vision_mode)
-
-        _, jpg = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 78])
-
         global anomaly_detector, threat_detector, crowd_predictor
 
-        stage = 1
         tracker  = Sort(max_age=SORT_MAX_AGE, min_hits=SORT_MIN_HITS,
                         iou_threshold=SORT_IOU_THRESH)
-        stage = 2
         analyzer = BehaviorAnalyzer()
-        stage = 3
         vision   = VisionEngine(frame_w=FRAME_WIDTH, frame_h=FRAME_HEIGHT)
 
         # New AI modules
-        stage = 4
         anomaly_detector = AnomalyDetector()
-        stage = 5
         threat_detector  = ThreatDetector()
-        stage = 6
         crowd_predictor  = CrowdPredictor()
 
-        stage = 7
         voice.start()
-        stage = 8
+        voice.set_enabled(_cfg.get("voice_on", True))
         face_engine.clear_results()
-        stage = 9
 
         cap_source, cap = _open_capture(initial_source)
         if cap is None:
@@ -641,13 +400,13 @@ def _run(initial_source, model, model_path):
         fps_avg      = 0.0
         t_prev       = time.time()
         t_count_log  = time.time()
+        t_narration  = 0.0
         COUNT_LOG_INT = 5.0
+        NARRATION_INTERVAL = 4.0
 
-        print(f"DEBUG: Entering while loop. _stop_event={_stop_event.is_set()}")
         while not _stop_event.is_set():
-            print("DEBUG: Loop iteration start")
 
-            # ── Dynamic model reload ───────────────────────────────────────────
+            # ── Dynamic model reload ───────────────────────────────────────
             new_path = _cfg.get("model_path", MODEL_PATH)
             if new_path != model_path:
                 try:
@@ -674,13 +433,16 @@ def _run(initial_source, model, model_path):
             vision_mode = _cfg["vision_mode"]
             v_lang      = _cfg.get("voice_lang", "en")
 
-            # ── Detection ─────────────────────────────────────────────────────
+            # ── Detection ─────────────────────────────────────────────────
             results = model(frame, verbose=False, conf=CONFIDENCE_THRESHOLD,
                             classes=classes)
             boxes = results[0].boxes
 
             person_dets = np.empty((0, 5))
             obj_dets    = []
+
+            frame_area = FRAME_WIDTH * FRAME_HEIGHT
+            max_det_area = frame_area * MAX_DETECTION_AREA_RATIO
 
             if boxes is not None and len(boxes):
                 xyxy    = boxes.xyxy.cpu().numpy()
@@ -689,15 +451,19 @@ def _run(initial_source, model, model_path):
                 for i in range(len(xyxy)):
                     x1, y1, x2, y2 = xyxy[i]
                     cf, cid = confs[i], cls_ids[i]
+                    # Skip oversized detections (person too close to camera)
+                    det_area = (x2 - x1) * (y2 - y1)
+                    if cid == 0 and det_area > max_det_area:
+                        continue
                     if cid == 0:
                         person_dets = np.vstack([person_dets, [x1, y1, x2, y2, cf]])
                     else:
                         obj_dets.append((x1, y1, x2, y2, cf, cid))
 
-            # ── Tracking ──────────────────────────────────────────────────────
+            # ── Tracking ──────────────────────────────────────────────────
             tracks = tracker.update(person_dets)
 
-            # ── Behaviour analysis ────────────────────────────────────────────
+            # ── Behaviour analysis ────────────────────────────────────────
             now    = time.time()
             events = analyzer.update(tracks, now)
             alert_ids   = {ev["track_id"] for ev in events}
@@ -717,7 +483,7 @@ def _run(initial_source, model, model_path):
                 crowd_predictor.record(len(tracks), now)
                 t_count_log = now
 
-            # ── Anomaly detection ────────────────────────────────────────────
+            # ── Anomaly detection ────────────────────────────────────────
             anomaly_events = anomaly_detector.update(tracks, now)
             crowd_stats = anomaly_detector.get_crowd_stats(tracks)
             for aev in anomaly_events:
@@ -730,7 +496,7 @@ def _run(initial_source, model, model_path):
                 voice.speak(speak_text, v_lang)
                 alert_ids.add(aev["track_id"])
 
-            # ── Threat detection ─────────────────────────────────────────────
+            # ── Threat detection ─────────────────────────────────────────
             threat_events = threat_detector.update(frame, tracks, now)
             for tev in threat_events:
                 db.log_alert(1, tev["type"], {
@@ -741,13 +507,13 @@ def _run(initial_source, model, model_path):
                 speak_text = tev["details_ta"] if v_lang == "ta" else tev["details_en"]
                 voice.speak(speak_text, v_lang)
 
-            # ── Face recognition (async, non-blocking) ────────────────────────
+            # ── Face recognition (async, non-blocking) ────────────────────
             face_engine.submit_frame(frame, tracks)
             face_names = face_engine.get_results()
             for tid, name in face_names.items():
                 game.assign_name(tid, name)
 
-            # ── Game logic ────────────────────────────────────────────────────
+            # ── Game logic ────────────────────────────────────────────────
             game_events = game.update(tracks, FRAME_WIDTH, FRAME_HEIGHT)
             for gev in game_events:
                 db.log_alert(1, gev["type"], {
@@ -765,7 +531,7 @@ def _run(initial_source, model, model_path):
             player_snapshot = {int(k): v for k, v in gstatus["players"].items()}
             target_name     = gstatus.get("target_name", "")
 
-            # ── Build track data ───────────────────────────────────────────────
+            # ── Build track data ─────────────────────────────────────────
             track_data = []
             for trk in tracks:
                 x1, y1, x2, y2, tid = trk
@@ -796,12 +562,20 @@ def _run(initial_source, model, model_path):
                     "status": "alive", "is_target": False,
                 })
 
-            # ── FPS ───────────────────────────────────────────────────────────
+            # ── Continuous scene narration ────────────────────────────────
+            if _cfg.get("voice_on", False):
+                if (now - t_narration) >= NARRATION_INTERVAL:
+                    voice.speak_live(_build_live_narration(track_data, v_lang), v_lang)
+                    t_narration = now
+            else:
+                t_narration = 0.0
+
+            # ── FPS ───────────────────────────────────────────────────────
             t_now   = time.time()
             fps_avg = 0.9 * fps_avg + 0.1 / max(t_now - t_prev, 1e-6)
             t_prev  = t_now
 
-            # ── Annotate ──────────────────────────────────────────────────────
+            # ── Annotate ──────────────────────────────────────────────────
             annotated = frame.copy()
             _draw_finish_line(annotated, gstatus)
             threat_detector.draw_zones(annotated)
@@ -810,9 +584,9 @@ def _run(initial_source, model, model_path):
             _draw_game_overlay(annotated, gstatus)
 
             vision.mode       = vision_mode
-            vision.trails_on  = _cfg.get("trails_on",  True)
-            vision.network_on = _cfg.get("network_on", True)
-            vision.predict_on = _cfg.get("predict_on", True)
+            vision.trails_on  = _cfg.get("trails_on",  False)
+            vision.network_on = _cfg.get("network_on", False)
+            vision.predict_on = _cfg.get("predict_on", False)
             vision.heatmap_on = _cfg.get("heatmap_on", False)
             annotated = vision.apply(annotated, tracks, crowd_alarm=crowd_alarm)
 
@@ -837,7 +611,7 @@ def _run(initial_source, model, model_path):
 
     except BaseException as e:
         with _lock:
-            state["error"] = f"Fatal Pipeline Error at stage {stage if 'stage' in locals() else 0}: {e}"
+            state["error"] = f"Fatal Pipeline Error: {e}"
     finally:
         if 'cap' in locals() and cap is not None:
             cap.release()
@@ -845,6 +619,8 @@ def _run(initial_source, model, model_path):
         with _lock:
             state["running"]   = False
             state["frame_jpg"] = None
+
+
 # ── Public API ─────────────────────────────────────────────────────────────────
 def start(source=None):
     global _thread
@@ -852,13 +628,13 @@ def start(source=None):
         source = CAMERA_SOURCE
     if _thread and _thread.is_alive():
         return False, "Already running"
-        
-    model_path = _cfg.get("model_path", "models/yolo26n.pt")
+
+    model_path = _cfg.get("model_path", MODEL_PATH)
     try:
         model = YOLO(model_path)
     except Exception as exc:
         return False, f"Failed to load model '{model_path}': {exc}"
-        
+
     _cfg["source"] = source
     _stop_event.clear()
     _thread = threading.Thread(target=_run, args=(source, model, model_path), daemon=True)

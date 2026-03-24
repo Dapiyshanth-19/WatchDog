@@ -63,8 +63,7 @@ class _KalmanBoxTracker:
     count = 0
 
     def __init__(self, bbox):
-        _KalmanBoxTracker.count += 1
-        self.id = _KalmanBoxTracker.count
+        self.id = -1  # deferred — assigned only when track is first reported
         self.kf = KalmanFilter(dim_x=7, dim_z=4)
         # State: [cx, cy, s, r, vx, vy, vs]
         self.kf.F = np.array([
@@ -190,6 +189,10 @@ class Sort:
             i -= 1
             d = trk.get_state()[0]
             if (trk.time_since_update < 1) and (trk.hit_streak >= self.min_hits or self.frame_count <= self.min_hits):
+                # Assign ID only when the track is first reported (avoids wasting IDs)
+                if trk.id < 0:
+                    _KalmanBoxTracker.count += 1
+                    trk.id = _KalmanBoxTracker.count
                 ret.append([*d, trk.id])
             if trk.time_since_update > self.max_age:
                 self.trackers.pop(i)

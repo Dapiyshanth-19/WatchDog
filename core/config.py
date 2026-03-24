@@ -85,5 +85,9 @@ SERVER_PORT = 5000
 
 # ── SORT tracker ──────────────────────────────────────────────────────────────
 SORT_MAX_AGE   = 50   # frames to keep a lost track alive (was 10 — too short)
-SORT_MIN_HITS  = 3    # frames a detection must be seen before reporting
+SORT_MIN_HITS  = 1    # report tracks immediately (higher values waste IDs on flicker)
 SORT_IOU_THRESH = 0.20
+
+# Maximum fraction of frame area a single detection can occupy (0.0–1.0)
+# Detections larger than this are likely camera-hugging / too close — skip them
+MAX_DETECTION_AREA_RATIO = 0.55
