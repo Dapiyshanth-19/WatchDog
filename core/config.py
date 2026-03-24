@@ -71,7 +71,7 @@ FACE_RECOGNITION_INTERVAL = 4           # frames between recognition passes (was
 # Minimum match score to accept a face as recognised (0.0 – 1.0)
 # Lower = more permissive (more false positives)
 # Higher = stricter (may miss valid matches)
-FACE_SIMILARITY_THRESHOLD = 0.70
+FACE_SIMILARITY_THRESHOLD = 0.65
 
 # Directory for storing uploaded face images
 FACES_DIR = os.path.join(BASE_DIR, "data", "faces")

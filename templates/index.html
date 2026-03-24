@@ -225,6 +225,37 @@ header{display:flex;align-items:center;gap:12px;padding:10px 18px;background:lin
 .reg-tag .del{cursor:pointer;color:var(--muted);font-size:.7rem;}
 .reg-tag .del:hover{color:var(--red);}
 
+/* Selected file item */
+.file-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    animation: slide-in 0.2s ease;
+    margin-bottom: 3px;
+}
+.file-item .file-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text);
+}
+.file-item .file-remove {
+    color: var(--red);
+    cursor: pointer;
+    font-size: 0.8rem;
+    margin-left: 8px;
+    font-weight: bold;
+}
+.file-item .file-remove:hover {
+    opacity: 0.8;
+}
+
 /* ── Error ───────────────────────────────────────────────────── */
 #error-banner{display:none;background:#4c0519;color:#fda4af;padding:8px 14px;border-radius:var(--r);font-size:.8rem;border:1px solid #9f1239;}
 
@@ -601,14 +632,15 @@ body.nm #finish-canvas{display:none;}
     <!-- Face registration -->
     <div class="card">
       <div class="face-panel">
-        <div class="face-panel-title" data-i18n="face_title">👤 Register Face</div>
+        <div class="face-panel-title">👤 Register Face (Multi-Photo)</div>
         <div class="face-row">
           <input id="face-name-input" class="face-input" type="text" placeholder="Name"/>
           <label class="file-label-btn" for="face-file-input">📂 Image</label>
-          <input id="face-file-input" type="file" accept="image/*" style="display:none"/>
+          <input id="face-file-input" type="file" accept="image/*" style="display:none" multiple/>
           <button class="btn-register" id="btn-register">Register</button>
         </div>
-        <div id="face-filename"></div>
+          <div id="face-filename"></div>
+          <div id="face-file-list" style="display: flex; flex-direction: column; gap: 4px; max-height: 120px; overflow-y: auto;"></div>
         <div id="face-status"></div>
         <div class="reg-tags" id="registered-list"></div>
       </div>
@@ -1274,9 +1306,34 @@ document.getElementById("kiosk-btn").addEventListener("click",()=>{
 });
 
 /* ── Face registration ───────────────────────────────────────── */
-document.getElementById("face-file-input").addEventListener("change",e=>{
-  const n=e.target.files[0]?.name||"";document.getElementById("face-filename").textContent=n?`📎 ${n}`:"";
+let selectedFiles = []; // Global array to hold files
+
+document.getElementById("face-file-input").addEventListener("change", e => {
+  const files = e.target.files;
+  for (let i = 0; i < files.length; i++) {
+    selectedFiles.push(files[i]);
+  }
+  renderFileList();
+  e.target.value = ""; // Clear input to allow re-selecting same files
 });
+
+function renderFileList() {
+  const list = document.getElementById("face-file-list");
+  const countLabel = document.getElementById("face-filename");
+  if(!list || !countLabel) return;
+  list.innerHTML = "";
+  if (selectedFiles.length === 0) { countLabel.textContent = ""; return; }
+  countLabel.textContent = `📎 ${selectedFiles.length} file(s) ready`;
+  
+  selectedFiles.forEach((file, index) => {
+    const div = document.createElement("div"); div.className = "file-item";
+    div.innerHTML = `<span class="file-name">${file.name}</span><span class="file-remove" data-index="${index}">✕</span>`;
+    div.querySelector(".file-remove").addEventListener("click", () => {
+      selectedFiles.splice(index, 1); renderFileList();
+    });
+    list.appendChild(div);
+  });
+}
 async function loadRegisteredUsers(){
   try{const r=await fetch("/face/users");const users=await r.json();
     const list=document.getElementById("registered-list");list.innerHTML="";
@@ -1289,20 +1346,28 @@ async function loadRegisteredUsers(){
       list.appendChild(tag);}
   }catch(e){}
 }
-document.getElementById("btn-register").addEventListener("click",async()=>{
-  const name=document.getElementById("face-name-input").value.trim();
-  const file=document.getElementById("face-file-input").files[0];
-  const st=document.getElementById("face-status");
-  if(!name){st.textContent="Enter a name.";st.className="err";return;}
-  if(!file){st.textContent="Select an image.";st.className="err";return;}
-  st.textContent="Processing…";st.className="";
-  const fd=new FormData();fd.append("name",name);fd.append("image",file);
-  try{const r=await fetch("/face/register",{method:"POST",body:fd});const d=await r.json();
-    st.textContent=d.message;st.className=d.ok?"ok":"err";
-    if(d.ok){document.getElementById("face-name-input").value="";
-      document.getElementById("face-file-input").value="";
-      document.getElementById("face-filename").textContent="";loadRegisteredUsers();}
-  }catch(e){st.textContent="Request failed.";st.className="err";}
+document.getElementById("btn-register").addEventListener("click", async () => {
+  const name = document.getElementById("face-name-input").value.trim();
+  const st = document.getElementById("face-status");
+  if (!name) { st.textContent = "Enter a name."; st.className = "err"; return; }
+  if (selectedFiles.length === 0) { st.textContent = "Select an image."; st.className = "err"; return; }
+  
+  st.textContent = "Processing…"; st.className = "";
+  const fd = new FormData();
+  fd.append("name", name);
+  selectedFiles.forEach(file => { fd.append("image", file); });
+  
+  try {
+    const r = await fetch("/face/register", { method: "POST", body: fd });
+    const d = await r.json();
+    st.textContent = d.message; st.className = d.ok ? "ok" : "err";
+    if (d.ok) {
+      document.getElementById("face-name-input").value = "";
+      selectedFiles = []; // Clear array
+      renderFileList(); // Re-render
+      loadRegisteredUsers();
+    }
+  } catch (e) { st.textContent = "Request failed."; st.className = "err"; }
 });
 
 /* ── AI Analytics ────────────────────────────────────────────── */
